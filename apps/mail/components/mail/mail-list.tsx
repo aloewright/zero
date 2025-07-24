@@ -15,6 +15,11 @@ import {
   type ComponentProps,
   useState,
 } from 'react';
+import {
+  composeTabsAtom,
+  activeComposeTabIdAtom,
+  toggleMinimizeTabAtom,
+} from '@/store/composeTabsStore';
 import { useOptimisticThreadState } from '@/components/mail/optimistic-thread-state';
 import { focusedIndexAtom, useMailNavigation } from '@/hooks/use-mail-navigation';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -25,6 +30,7 @@ import { ThreadContextMenu } from '@/components/context/thread-context';
 import { useOptimisticActions } from '@/hooks/use-optimistic-actions';
 import { useMail, type Config } from '@/components/mail/use-mail';
 import { type ThreadDestination } from '@/lib/thread-actions';
+import { addComposeTabAtom } from '@/store/composeTabsStore';
 import { useThread, useThreads } from '@/hooks/use-threads';
 import { useSearchValue } from '@/hooks/use-search-value';
 import { EmptyStateIcon } from '../icons/empty-state-svg';
@@ -39,6 +45,7 @@ import { BimiAvatar } from '../ui/bimi-avatar';
 import { RenderLabels } from './render-labels';
 import { Badge } from '@/components/ui/badge';
 import { useDraft } from '@/hooks/use-drafts';
+import { useAtom, useSetAtom } from 'jotai';
 import { Check, Star } from 'lucide-react';
 import { Skeleton } from '../ui/skeleton';
 import { m } from '@/paraglide/messages';
@@ -46,7 +53,6 @@ import { useParams } from 'react-router';
 import { Button } from '../ui/button';
 import { Avatar } from '../ui/avatar';
 import { useQueryState } from 'nuqs';
-import { useAtom } from 'jotai';
 
 const Thread = memo(
   function Thread({
@@ -566,16 +572,33 @@ const Thread = memo(
 const Draft = memo(({ message, index }: { message: { id: string }; index: number }) => {
   const draftQuery = useDraft(message.id) as UseQueryResult<ParsedDraft>;
   const draft = draftQuery.data;
-  const [, setComposeOpen] = useQueryState('isComposeOpen');
-  const [, setDraftId] = useQueryState('draftId');
   const { optimisticDeleteDraft } = useOptimisticActions();
   const optimisticState = useOptimisticThreadState(message.id);
+  const addTab = useSetAtom(addComposeTabAtom);
+  const [composeTabs] = useAtom(composeTabsAtom);
+  const setActiveTabId = useSetAtom(activeComposeTabIdAtom);
+  const toggleMinimize = useSetAtom(toggleMinimizeTabAtom);
 
   const handleMailClick = useCallback(() => {
-    setComposeOpen('true');
-    setDraftId(message.id);
+    // Check if a tab with this draft ID already exists
+    const existingTab = Array.from(composeTabs.values()).find((tab) => tab.draftId === message.id);
+
+    if (existingTab) {
+      // If tab exists, just focus it
+      setActiveTabId(existingTab.id);
+      // Un-minimize if it's minimized
+      if (existingTab.isMinimized) {
+        toggleMinimize(existingTab.id);
+      }
+    } else {
+      // Otherwise, create a new tab with the draft subject
+      addTab({
+        draftId: message.id,
+        subject: draft?.subject || 'Draft',
+      });
+    }
     return;
-  }, [message.id]);
+  }, [message.id, addTab, composeTabs, setActiveTabId, toggleMinimize, draft?.subject]);
 
   const handleDeleteDraft = useCallback(
     (e: React.MouseEvent) => {
@@ -621,6 +644,8 @@ const Draft = memo(({ message, index }: { message: { id: string }; index: number
       </div>
     );
   }
+
+  Draft.displayName = 'Draft';
 
   return (
     <div className="select-none py-1" onClick={handleMailClick}>
@@ -970,7 +995,7 @@ export const MailList = memo(
                 <div className="flex flex-col items-center justify-center gap-2 text-center">
                   <EmptyStateIcon width={200} height={200} />
                   <div className="mt-5">
-                    <p className="text-lg">It's empty here</p>
+                    <p className="text-lg">It&apos;s empty here</p>
                     <p className="text-md text-muted-foreground dark:text-white/50">
                       Search for another email or{' '}
                       <button className="underline" onClick={clearFilters}>
