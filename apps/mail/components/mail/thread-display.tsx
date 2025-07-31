@@ -34,7 +34,6 @@ import type { ParsedMessage, Attachment } from '@/types';
 import { useAnimations } from '@/hooks/use-animations';
 import { AnimatePresence, motion } from 'motion/react';
 import { MailDisplaySkeleton } from './mail-skeleton';
-import { useParams, useNavigate } from 'react-router';
 import { useTRPC } from '@/providers/query-provider';
 import { useMutation } from '@tanstack/react-query';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -46,6 +45,7 @@ import { NotesPanel } from './note-panel';
 import { cn, FOLDERS } from '@/lib/utils';
 import { m } from '@/paraglide/messages';
 import MailDisplay from './mail-display';
+import { useParams } from 'react-router';
 import { Inbox } from 'lucide-react';
 import { useQueryState } from 'nuqs';
 import { format } from 'date-fns';
@@ -153,7 +153,6 @@ function ThreadActionButton({
 }
 const isFullscreen = false;
 export function ThreadDisplay() {
-  const navigate = useNavigate();
   const isMobile = useIsMobile();
   const { toggleOpen: toggleAISidebar } = useAISidebar();
   const params = useParams<{ folder: string }>();
@@ -1032,7 +1031,7 @@ const MessageList = ({
         return (
           <div
             key={message.id}
-            className={cn('duration-200', index > 0 && 'border-border border-t')}
+            className={cn('transition-all duration-200', index > 0 && 'border-border border-t')}
           >
             <MailDisplay
               emailData={message}
