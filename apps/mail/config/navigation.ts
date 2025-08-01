@@ -14,6 +14,7 @@ import {
   Plane2,
   LockIcon,
   Clock,
+  Bell,
 } from '@/components/icons/icons';
 import { BellIcon, MessageSquareIcon } from 'lucide-react';
 import { m } from '@/paraglide/messages';
@@ -74,7 +75,7 @@ export const navigationConfig: Record<string, NavConfig> = {
             id: 'subscriptions',
             title: m['navigation.sidebar.subscriptions'](),
             url: '/mail/subscriptions',
-            icon: BellIcon,
+            icon: Bell,
             shortcut: 'g + s',
           },
         ],

@@ -18,6 +18,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { RefreshCcw, Mail, MailOpen, Search, Trash2 } from 'lucide-react';
 import { EmptyStateIcon } from '@/components/icons/empty-state-svg';
 import { SidebarToggle } from '@/components/ui/sidebar-toggle';
+import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Avatar } from '@/components/ui/avatar';
@@ -117,7 +118,7 @@ function SubscriptionItemComponent({
 export default function SubscriptionsPage() {
   const {
     subscriptions,
-    stats,
+    // stats,
     selectedIds,
     isLoading,
     isUnsubscribing,
@@ -135,18 +136,18 @@ export default function SubscriptionsPage() {
     refetch,
   } = useSubscriptions();
 
-  // const stats = {
-  //   overall: {
-  //     total: 0,
-  //     active: 0,
-  //     inactive: 0,
-  //   },
-  // };
+  const stats = {
+    overall: {
+      total: 0,
+      active: 0,
+      inactive: 0,
+    },
+  };
 
   return (
-    <div className="rounded-inherit relative z-[5] flex p-0 md:mr-1 md:mt-1">
+    <div className="rounded-inherit relative z-[5] flex p-0 md:my-1 md:mr-1">
       <div className="rounded-inherit h-full w-full overflow-hidden">
-        <div className="bg-panelLight dark:bg-panelDark mb-1 block w-full shadow-sm md:mr-[3px] md:rounded-2xl lg:flex lg:h-[calc(100dvh-8px)] lg:shadow-sm">
+        <div className="bg-panelLight dark:bg-panelDark block w-full shadow-sm md:mr-[3px] md:rounded-2xl lg:flex lg:h-[calc(100dvh-8px)] lg:shadow-sm">
           <div className="w-full md:h-[calc(100dvh-10px)]">
             <div className="relative z-[1] h-[calc(100dvh-(2px+2px))] w-full overflow-hidden pt-0">
               <div>
@@ -164,12 +165,12 @@ export default function SubscriptionsPage() {
 
                       <div className="flex gap-2">
                         <div className="relative flex-1">
-                          <Search className="text-muted-foreground absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" />
+                          <Search className="text-muted-foreground absolute left-3 top-1/2 h-3 w-3 -translate-y-1/2" />
                           <Input
                             placeholder="Search subscriptions..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-9"
+                            className="p-1 pl-9"
                           />
                         </div>
 
@@ -216,10 +217,7 @@ export default function SubscriptionsPage() {
                           </Button>
                         )}
                         <Button
-                          onClick={() => {
-                            // refetchThreads();
-                            refetch();
-                          }}
+                          onClick={() => refetch()}
                           variant="ghost"
                           className="md:h-fit md:px-2"
                         >
@@ -229,39 +227,39 @@ export default function SubscriptionsPage() {
                     </div>
                   </div>
                 </div>
-
-                {stats && (
-                  <div className="mb-4 grid grid-cols-3 gap-4 p-2 px-3">
-                    <Card>
-                      <CardHeader className="p-3">
-                        <CardTitle className="text-sm font-medium">Total</CardTitle>
-                        <CardDescription className="text-2xl font-bold">
-                          {stats?.overall?.total || 0}
-                        </CardDescription>
-                      </CardHeader>
-                    </Card>
-                    <Card>
-                      <CardHeader className="p-3">
-                        <CardTitle className="text-sm font-medium">Active</CardTitle>
-                        <CardDescription className="text-2xl font-bold text-green-600">
-                          {stats?.overall?.active || 0}
-                        </CardDescription>
-                      </CardHeader>
-                    </Card>
-                    <Card>
-                      <CardHeader className="p-3">
-                        <CardTitle className="text-sm font-medium">Unsubscribed</CardTitle>
-                        <CardDescription className="text-2xl font-bold text-red-600">
-                          {stats?.overall?.inactive || 0}
-                        </CardDescription>
-                      </CardHeader>
-                    </Card>
-                  </div>
-                )}
               </div>
 
-              {/* List */}
-              <div className="h-[calc(100dvh-150px)] overflow-auto p-4">
+              {stats && (
+                <div className="mb-4 grid grid-cols-3 gap-4 p-4">
+                  <Card>
+                    <CardHeader className="p-3">
+                      <CardTitle className="text-sm font-medium">Total</CardTitle>
+                      <CardDescription className="text-2xl font-bold">
+                        {stats?.overall?.total || 0}
+                      </CardDescription>
+                    </CardHeader>
+                  </Card>
+                  <Card>
+                    <CardHeader className="p-3">
+                      <CardTitle className="text-sm font-medium">Active</CardTitle>
+                      <CardDescription className="text-2xl font-bold text-green-600">
+                        {stats?.overall?.active || 0}
+                      </CardDescription>
+                    </CardHeader>
+                  </Card>
+                  <Card>
+                    <CardHeader className="p-3">
+                      <CardTitle className="text-sm font-medium">Unsubscribed</CardTitle>
+                      <CardDescription className="text-2xl font-bold text-red-600">
+                        {stats?.overall?.inactive || 0}
+                      </CardDescription>
+                    </CardHeader>
+                  </Card>
+                </div>
+              )}
+              <Separator className="mb-4" />
+
+              <div className="flex h-[calc(100dvh-62px)] flex-col overflow-auto p-4">
                 {isLoading ? (
                   <div className="space-y-3">
                     {[...Array(5)].map((_, i) => (
@@ -285,7 +283,7 @@ export default function SubscriptionsPage() {
                     </div>
                   </div>
                 ) : (
-                  <VList className="w-full">
+                  <VList className="w-full flex-1">
                     {subscriptions.map((subscription: SubscriptionItem) => (
                       <SubscriptionItemComponent
                         key={subscription.id}
