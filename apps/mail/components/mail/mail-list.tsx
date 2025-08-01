@@ -21,6 +21,7 @@ import { useThread, useThreads } from '@/hooks/use-threads';
 import { useSearchValue } from '@/hooks/use-search-value';
 import { EmptyStateIcon } from '../icons/empty-state-svg';
 import { highlightText } from '@/lib/email-utils.client';
+import { OTPCodesDisplay } from './otp-codes-display';
 import { cn, FOLDERS, formatDate } from '@/lib/utils';
 import { useTRPC } from '@/providers/query-provider';
 import { useThreadLabels } from '@/hooks/use-labels';
@@ -929,6 +930,11 @@ export const MailList = memo(
               </div>
             ) : (
               <div className="flex flex-1 flex-col" id="mail-list-scroll">
+                {folder === 'inbox' && (
+                  <div>
+                    <OTPCodesDisplay />
+                  </div>
+                )}
                 <VList
                   ref={vListRef}
                   count={filteredItems.length}
