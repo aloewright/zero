@@ -283,6 +283,7 @@ export class ZeroDriver extends AIChatAgent<typeof env> {
   private syncThreadsInProgress: Map<string, boolean> = new Map();
   private driver: MailManager | null = null;
   private agent: DurableObjectStub<ZeroAgent> | null = null;
+  private recipientCache: { contacts: Array<{ email: string; name?: string | null; freq: number; last: number }>; hash: string } | null = null;
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     if (shouldDropTables) this.dropTables();
@@ -299,6 +300,11 @@ export class ZeroDriver extends AIChatAgent<typeof env> {
             latest_label_ids TEXT,
             categories TEXT
         );
+    `;
+    void this.sql`
+        CREATE INDEX IF NOT EXISTS idx_threads_latest_received_desc 
+        ON threads(latest_received_on DESC) 
+        WHERE latest_sender IS NOT NULL;
     `;
   }
 
@@ -1740,44 +1746,57 @@ export class ZeroDriver extends AIChatAgent<typeof env> {
 
   async suggestRecipients(query: string = '', limit: number = 10) {
     const lower = query.toLowerCase();
+    
+    const hashRows = this.sql`
+      SELECT id FROM threads WHERE latest_sender IS NOT NULL ORDER BY latest_received_on DESC LIMIT 100
+    ` as { id: string }[];
+    
+    const currentHash = hashRows.map(r => r.id).join(',');
+    
+    if (!this.recipientCache || this.recipientCache.hash !== currentHash) {
+      const rows = this.sql`
+        SELECT latest_sender, latest_received_on
+        FROM threads
+        WHERE latest_sender IS NOT NULL
+        ORDER BY latest_received_on DESC
+        LIMIT 100
+      ` as { latest_sender?: string; latest_received_on?: string }[];
 
-    const rows = this.sql`
-      SELECT latest_sender, latest_received_on
-      FROM threads
-      WHERE latest_sender IS NOT NULL
-      ORDER BY latest_received_on DESC
-      LIMIT 100
-    ` as { latest_sender?: string; latest_received_on?: string }[];
+      const map = new Map<string, { email: string; name?: string | null; freq: number; last: number }>();
 
-    const map = new Map<string, { email: string; name?: string | null; freq: number; last: number }>();
+      for (const row of rows) {
+        if (!row?.latest_sender) continue;
+        try {
+          const sender = JSON.parse(String(row.latest_sender));
+          if (!sender?.email) continue;
 
-    for (const row of rows) {
-      if (!row?.latest_sender) continue;
-      try {
-        const sender = JSON.parse(String(row.latest_sender));
-        if (!sender?.email) continue;
+          const key = sender.email.toLowerCase();
+          const lastTs = row.latest_received_on ? new Date(String(row.latest_received_on)).getTime() : 0;
 
-        const key = sender.email.toLowerCase();
-        const lastTs = row.latest_received_on ? new Date(String(row.latest_received_on)).getTime() : 0;
-
-        if (!map.has(key)) {
-          map.set(key, {
-            email: sender.email,
-            name: sender.name,
-            freq: 1,
-            last: lastTs,
-          });
-        } else {
-          const entry = map.get(key)!;
-          entry.freq += 1;
-          if (lastTs > entry.last) entry.last = lastTs;
+          if (!map.has(key)) {
+            map.set(key, {
+              email: sender.email,
+              name: sender.name,
+              freq: 1,
+              last: lastTs,
+            });
+          } else {
+            const entry = map.get(key)!;
+            entry.freq += 1;
+            if (lastTs > entry.last) entry.last = lastTs;
+          }
+        } catch (error) {
+          console.error('[SuggestRecipients] Failed to parse latest_sender JSON:', error, 'Raw data:', row.latest_sender);
         }
-      } catch (error) {
-        console.error('[SuggestRecipients] Failed to parse latest_sender JSON:', error, 'Raw data:', row.latest_sender);
       }
+
+      this.recipientCache = {
+        contacts: Array.from(map.values()),
+        hash: currentHash,
+      };
     }
 
-    let contacts = Array.from(map.values());
+    let contacts = this.recipientCache.contacts.slice();
 
     if (lower) {
       contacts = contacts.filter(
