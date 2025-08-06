@@ -221,7 +221,7 @@ export function RecipientAutosuggest({
       <div className="flex flex-wrap items-center gap-2 min-h-[32px]">
         {recipients.map((email: string, index: number) => (
           <div
-            key={index}
+            key={`recipient-${email}-${index}`}
             className="flex items-center gap-1 rounded-full border px-2 py-0.5"
           >
             <span className="flex gap-1 py-0.5 text-sm text-black dark:text-white">

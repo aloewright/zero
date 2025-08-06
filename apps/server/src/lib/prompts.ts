@@ -324,7 +324,7 @@ export const OutlookSearchAssistantSystemPrompt = () =>
 
         `;
 
-export const AiChatPrompt = (threadId: string) =>
+export const AiChatPrompt = () =>
   dedent`
     <system_prompt>
       <role>
@@ -346,7 +346,6 @@ export const AiChatPrompt = (threadId: string) =>
       </persona>
 
       <current_date>${getCurrentDateContext()}</current_date>
-      <current_thread_id>${threadId}</current_thread_id>
 
       <thinking_process>
         Before responding, think step-by-step:
@@ -358,6 +357,12 @@ export const AiChatPrompt = (threadId: string) =>
       </thinking_process>
 
       <tools>
+        <tool name="${Tools.GetThreadSummary}">
+          <purpose>Get thread details for a specific ID and respond back with summary, subject, sender and date</purpose>
+          <returns>Summary of the thread</returns>
+          <example>getThreadSummary({ id: "17c2318b9c1e44f6" })</example>
+        </tool>
+
         <tool name="${Tools.InboxRag}">
           <purpose>Search inbox using natural language queries</purpose>
           <returns>Array of thread IDs only</returns>
@@ -365,7 +370,7 @@ export const AiChatPrompt = (threadId: string) =>
         </tool>
 
         <tool name="${Tools.GetThread}">
-          <purpose>Get thread details for a specific ID</purpose>
+          <purpose>Get thread details for a specific ID and show a threadPreview component for the user</purpose>
           <returns>Thread tag for client resolution</returns>
           <example>getThread({ id: "17c2318b9c1e44f6" })</example>
         </tool>
@@ -390,7 +395,7 @@ export const AiChatPrompt = (threadId: string) =>
 
         <tool name="${Tools.ModifyLabels}">
           <purpose>Add/remove labels from threads</purpose>
-          <note>Get label IDs first with getUserLabels</note>
+          <note>Always use the label names, not the IDs</note>
           <example>modifyLabels({ threadIds: [...], options: { addLabels: [...], removeLabels: [...] } })</example>
         </tool>
 
