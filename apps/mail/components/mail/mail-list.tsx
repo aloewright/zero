@@ -23,10 +23,8 @@ import { type ThreadDestination } from '@/lib/thread-actions';
 import { useThread, useThreads } from '@/hooks/use-threads';
 import { useSearchValue } from '@/hooks/use-search-value';
 import { EmptyStateIcon } from '../icons/empty-state-svg';
-import { useCopiedOtpCodes } from '@/hooks/use-otp-codes';
 import { highlightText } from '@/lib/email-utils.client';
 import { detectOTPFromEmail } from '@/lib/otp-detection';
-import { useMagicLinks } from '@/hooks/use-magic-links';
 import { cn, FOLDERS, formatDate } from '@/lib/utils';
 import { useTRPC } from '@/providers/query-provider';
 import { useThreadLabels } from '@/hooks/use-labels';
@@ -61,8 +59,6 @@ const Thread = memo(
     const { data: getThreadData, isGroupThread, latestDraft } = useThread(message.id);
     const [id, setThreadId] = useQueryState('threadId');
     const [focusedIndex, setFocusedIndex] = useAtom(focusedIndexAtom);
-    const { markAsCopied, isCodeCopied } = useCopiedOtpCodes();
-    const { isLinkUsed } = useMagicLinks();
 
     const { latestMessage, idToUse, cleanName, otpCode, magicLink } = useMemo(() => {
       const latestMessage = getThreadData?.latest;
@@ -224,7 +220,6 @@ const Thread = memo(
         e.stopPropagation();
         e.preventDefault();
         navigator.clipboard.writeText(code.code);
-        markAsCopied(code.id);
         toast.success('Copied to clipboard');
       };
 
@@ -563,11 +558,9 @@ const Thread = memo(
                     size="sm"
                     className={cn(
                       'z-10 flex h-6 flex-row gap-1 !px-2 !py-1 text-xs',
-                      isCodeCopied(otpCode.id)
-                        ? 'bg-green-500/10 hover:bg-green-500/20 dark:bg-green-500/10 dark:hover:bg-green-500/20'
-                        : 'bg-black/10 hover:bg-black/20 dark:bg-white/10 dark:hover:bg-white/20',
+                      'bg-black/10 hover:bg-black/20 dark:bg-white/10 dark:hover:bg-white/20',
                     )}
-                    onClick={(e) => copyCode(e, otpCode.code)}
+                    onClick={(e) => copyCode(e, { id: otpCode.id, code: otpCode.code })}
                   >
                     <Copy className="h-2 w-2" />
                     <span className="font-mono text-xs">{otpCode.code}</span>
@@ -584,9 +577,7 @@ const Thread = memo(
                     size="sm"
                     className={cn(
                       'z-10 flex h-6 flex-row items-center gap-1 !px-2 !py-1 text-xs',
-                      isLinkUsed(magicLink.id)
-                        ? 'bg-green-500/10 hover:bg-green-500/20 dark:bg-green-500/10 dark:hover:bg-green-500/20'
-                        : 'bg-black/10 hover:bg-black/20 dark:bg-white/10 dark:hover:bg-white/20',
+                      'bg-black/10 hover:bg-black/20 dark:bg-white/10 dark:hover:bg-white/20',
                     )}
                     onClick={(e) => openMagicLink(e, magicLink.url)}
                   >
