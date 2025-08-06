@@ -15,6 +15,44 @@ interface RecipientSuggestion {
   displayText: string;
 }
 
+const isValidRecipientSuggestion = (item: unknown): item is RecipientSuggestion => {
+  if (typeof item !== 'object' || item === null) return false;
+  
+  if (!('email' in item) || !('displayText' in item)) return false;
+  
+  const email = Reflect.get(item, 'email');
+  const displayText = Reflect.get(item, 'displayText');
+  const name = Reflect.get(item, 'name');
+  
+  if (typeof email !== 'string' || typeof displayText !== 'string') {
+    return false;
+  }
+  
+  if (name !== undefined && name !== null && typeof name !== 'string') {
+    return false;
+  }
+  
+  return true;
+};
+
+const validateSuggestions = (data: unknown): RecipientSuggestion[] => {
+  if (!Array.isArray(data)) {
+    if (data !== undefined && data !== null) {
+      console.warn('Expected array for recipient suggestions, got:', typeof data);
+    }
+    return [];
+  }
+  
+  const valid = data.filter(isValidRecipientSuggestion);
+  const invalid = data.length - valid.length;
+  
+  if (invalid > 0) {
+    console.warn(`Filtered out ${invalid} invalid recipient suggestions`);
+  }
+  
+  return valid;
+};
+
 interface RecipientAutosuggestProps {
   control: Control<any>;
   name: string;
@@ -62,10 +100,12 @@ export function RecipientAutosuggest({
     enabled: debouncedQuery.trim().length > 0 && !isComposing,
   });
 
-  const filteredSuggestions = useMemo(() => 
-    (allSuggestions as RecipientSuggestion[]).filter((suggestion: RecipientSuggestion) => 
+  const filteredSuggestions = useMemo(() => {
+    const validatedSuggestions = validateSuggestions(allSuggestions);
+    return validatedSuggestions.filter((suggestion) => 
       !recipients.includes(suggestion.email)
-    ), [allSuggestions, recipients]);
+    );
+  }, [allSuggestions, recipients]);
 
   const isValidEmail = useCallback((email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
