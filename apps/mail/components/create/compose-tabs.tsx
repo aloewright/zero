@@ -373,13 +373,6 @@ export function ComposeTabs() {
     );
   }
 
-  console.log({
-    isSidebarOpen,
-    isAIFullScreen,
-    isAISidebar,
-    viewMode,
-  });
-
   return (
     <>
       <div

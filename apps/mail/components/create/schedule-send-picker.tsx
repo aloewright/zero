@@ -2,7 +2,6 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useState, useEffect } from 'react';
 import { format, isValid } from 'date-fns';
 import { Button } from '../ui/button';
-import { Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 

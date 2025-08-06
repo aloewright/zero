@@ -467,13 +467,17 @@ function EmailComposerBase({
   const saveDraft = async () => {
     const values = getValues();
 
+    console.log('[SAVE DRAFT]');
+
+    console.log('[SAVE DRAFT] hasUnsavedChanges', hasUnsavedChanges);
+
     if (!hasUnsavedChanges) return;
     const messageText = editor.getText();
 
-    if (messageText.trim() === initialMessage.trim()) return;
-    if (editor.getHTML() === initialMessage.trim()) return;
     if (!values.to.length || !values.subject.length || !messageText.length) return;
     if (aiGeneratedMessage || aiIsLoading || isGeneratingSubject) return;
+
+    console.log('[SAVE DRAFT] messageText', messageText);
 
     try {
       setIsSavingDraft(true);
@@ -489,7 +493,11 @@ function EmailComposerBase({
         fromEmail: values.fromEmail ? values.fromEmail : null,
       };
 
+      console.log('[SAVE DRAFT] draftData', draftData);
+
       const response = await createDraft(draftData);
+
+      console.log(response);
 
       if (response?.id && response.id !== currentDraftId) {
         // If we're in a tab, only update via callback
@@ -597,17 +605,20 @@ function EmailComposerBase({
   }, [editor, showLeaveConfirmation]);
 
   useEffect(() => {
+    console.log('[USE EFFECT RUNNING]');
     if (!hasUnsavedChanges) return;
-
+    console.log('[USE EFFECT RUNNING] hasUnsavedChanges', hasUnsavedChanges);
     const autoSaveTimer = setTimeout(() => {
-      // Only save if content has actually changed
+      console.log('[USE EFFECT RUNNING] autoSaveTimer');
+
       const currentContent = editor?.getText() || '';
       const hasContentChanged = currentContent.trim() !== initialMessage.trim();
 
       if (hasContentChanged || getValues().to.length > 0 || getValues().subject) {
+        console.log('[USE EFFECT RUNNING] hasContentChanged', hasContentChanged);
         saveDraft();
       }
-    }, 10000); // Increased to 10 seconds
+    }, 1000); // Increased to 10 seconds
 
     return () => clearTimeout(autoSaveTimer);
   }, [hasUnsavedChanges, editor, initialMessage, getValues]);
@@ -1081,7 +1092,23 @@ function EmailComposerBase({
             )}
           </div>
         </div>
-        <div className="flex items-start justify-start gap-2">
+        <div className="flex items-center justify-start gap-2">
+          {(isSavingDraft ||
+            (draftSavedAt && new Date().getTime() - draftSavedAt.getTime() < 3000)) && (
+            <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
+              {isSavingDraft ? (
+                <>
+                  <div className="h-1 w-1 animate-pulse rounded-full bg-green-500" />
+                  <span>Saving draft...</span>
+                </>
+              ) : (
+                <>
+                  <div className="h-1 w-1 rounded-full bg-green-500" />
+                  <span>Draft saved</span>
+                </>
+              )}
+            </div>
+          )}
           <ScheduleSendPicker
             value={scheduleAt}
             onChange={handleScheduleChange}
@@ -1103,24 +1130,6 @@ function EmailComposerBase({
               <CurvedArrow className="mt-1.5 h-4 w-4 fill-white dark:fill-black" />
             </div>
           </Button>
-
-          {/* Draft saving indicator */}
-          {(isSavingDraft ||
-            (draftSavedAt && new Date().getTime() - draftSavedAt.getTime() < 3000)) && (
-            <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
-              {isSavingDraft ? (
-                <>
-                  <div className="h-1 w-1 animate-pulse rounded-full bg-green-500" />
-                  <span>Saving draft...</span>
-                </>
-              ) : (
-                <>
-                  <div className="h-1 w-1 rounded-full bg-green-500" />
-                  <span>Draft saved</span>
-                </>
-              )}
-            </div>
-          )}
 
           {/* <Tooltip>
               <TooltipTrigger asChild>
