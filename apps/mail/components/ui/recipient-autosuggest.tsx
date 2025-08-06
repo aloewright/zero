@@ -18,11 +18,13 @@ interface RecipientSuggestion {
 const isValidRecipientSuggestion = (item: unknown): item is RecipientSuggestion => {
   if (typeof item !== 'object' || item === null) return false;
   
-  if (!('email' in item) || !('displayText' in item)) return false;
+  const obj = item as Record<string, unknown>;
   
-  const email = Reflect.get(item, 'email');
-  const displayText = Reflect.get(item, 'displayText');
-  const name = Reflect.get(item, 'name');
+  if (!('email' in obj) || !('displayText' in obj)) return false;
+  
+  const email = obj.email;
+  const displayText = obj.displayText;
+  const name = obj.name;
   
   if (typeof email !== 'string' || typeof displayText !== 'string') {
     return false;

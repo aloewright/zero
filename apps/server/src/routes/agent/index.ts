@@ -50,6 +50,7 @@ import { connectionToDriver, getZeroSocketAgent } from '../../lib/server-utils';
 import { Migratable, Queryable, Transfer } from 'dormroom';
 import type { CreateDraftData } from '../../lib/schemas';
 import { DurableObject } from 'cloudflare:workers';
+import { env } from '../../env';
 import { withRetry } from '../../lib/gmail-rate-limit';
 import { drizzle } from 'drizzle-orm/durable-sqlite';
 import { getPrompt } from '../../pipelines.effect';
@@ -75,7 +76,7 @@ import { eq, desc, isNotNull } from 'drizzle-orm';
 
 const decoder = new TextDecoder();
 const maxCount = 20;
-const shouldLoop = true; // Default to true for thread sync loop
+const shouldLoop = env.THREAD_SYNC_LOOP !== 'true';
 
 // Error types for getUserTopics
 export class StorageError extends Error {
@@ -918,7 +919,7 @@ export class ZeroDriver extends DurableObject<ZeroEnv> {
     this.invalidateRecipientCache();
     this.agent?.broadcastChatMessage({
       type: OutgoingMessageType.Mail_List,
-      folder: 'bin',
+      folder: 'trash',
     });
   }
 
