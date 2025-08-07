@@ -322,3 +322,38 @@ export const emailTemplate = createTable(
     unique('mail0_email_template_user_id_name_unique').on(t.userId, t.name),
   ],
 );
+
+export const authItem = createTable(
+  'auth_item',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    connectionId: text('connection_id')
+      .notNull()
+      .references(() => connection.id, { onDelete: 'cascade' }),
+    threadId: text('thread_id').notNull(),
+    messageId: text('message_id').notNull().unique(),
+    type: text('type').$type<'otp' | 'ml'>().notNull(),
+    isUsed: boolean('is_used').notNull().default(false),
+    code: text('code'),
+    url: text('url'),
+    service: text('service').notNull(),
+    from: text('from').notNull(),
+    subject: text('subject').notNull(),
+    isConsumed: boolean('is_consumed').notNull().default(false),
+    receivedAt: timestamp('received_at').notNull(),
+    expiresAt: timestamp('expires_at'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (t) => [
+    index('auth_item_user_id_idx').on(t.userId),
+    index('auth_item_connection_id_idx').on(t.connectionId),
+    index('auth_item_thread_id_idx').on(t.threadId),
+    index('auth_item_received_at_idx').on(t.receivedAt),
+    index('auth_item_type_idx').on(t.type),
+    index('auth_item_service_idx').on(t.service),
+  ],
+);

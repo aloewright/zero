@@ -14,20 +14,23 @@
  * Reuse or distribution of this file requires a license from Zero Email Inc.
  */
 import {
-  SummarizeMessage,
   ReSummarizeThread,
+  SummarizeMessage,
   SummarizeThread,
 } from '../lib/brain.fallback.prompts';
 import { getZeroAgent, getZeroSocketAgent, modifyThreadLabelsInDB } from '../lib/server-utils';
+import { detectMagicLinkFromThreadAI, detectOTPFromThreadAI } from '../lib/otp-detector';
 import { EPrompts, defaultLabels, type ParsedMessage } from '../types';
 import { analyzeEmailIntent, generateAutomaticDraft } from './index';
-import { getPrompt, getEmbeddingVector } from '../pipelines.effect';
+import { getEmbeddingVector, getPrompt } from '../pipelines.effect';
 import { messageToXML, threadToXML } from './workflow-utils';
 import type { WorkflowContext } from './workflow-engine';
 import { bulkDeleteKeys } from '../lib/bulk-delete';
 import { getPromptName } from '../pipelines';
-import { env } from 'cloudflare:workers';
+import { authItem } from '../db/schema';
+import { createDb } from '../db';
 import { Effect } from 'effect';
+import { env } from '../env';
 
 export type WorkflowFunction = (context: WorkflowContext) => Promise<any>;
 
@@ -59,6 +62,80 @@ export const workflowFunctions: Record<string, WorkflowFunction> = {
     });
 
     return emailIntent;
+  },
+
+  detectAndStoreOTP: async (context) => {
+    try {
+      if (!context.thread?.messages?.length) return { detected: false };
+      const detection = await detectOTPFromThreadAI({ messages: context.thread.messages });
+      if (!detection) return { detected: false };
+
+      const latestMessage = context.thread.messages[context.thread.messages.length - 1];
+      const { db, conn } = createDb(env.HYPERDRIVE.connectionString);
+      try {
+        await db
+          .insert(authItem)
+          .values({
+            id: crypto.randomUUID(),
+            userId: context.foundConnection.userId,
+            connectionId: context.connectionId,
+            threadId: context.threadId,
+            messageId: latestMessage.messageId || latestMessage.id,
+            type: 'otp',
+            code: detection.code,
+            url: null,
+            service: detection.service,
+            from: latestMessage.sender?.email || '',
+            subject: latestMessage.subject || '',
+            receivedAt: new Date(latestMessage.receivedOn),
+            expiresAt: detection.expiresAt,
+          })
+          .onConflictDoNothing({ target: authItem.messageId });
+      } finally {
+        await conn.end();
+      }
+      return { detected: true };
+    } catch (error) {
+      console.warn('[WORKFLOW_FUNCTIONS] OTP detection failed:', error);
+      return { detected: false };
+    }
+  },
+
+  detectAndStoreMagicLink: async (context) => {
+    try {
+      if (!context.thread?.messages?.length) return { detected: false };
+      const detection = await detectMagicLinkFromThreadAI({ messages: context.thread.messages });
+      if (!detection) return { detected: false };
+
+      const latestMessage = context.thread.messages[context.thread.messages.length - 1];
+      const { db, conn } = createDb(env.HYPERDRIVE.connectionString);
+      try {
+        await db
+          .insert(authItem)
+          .values({
+            id: crypto.randomUUID(),
+            userId: context.foundConnection.userId,
+            connectionId: context.connectionId,
+            threadId: context.threadId,
+            messageId: latestMessage.messageId || latestMessage.id,
+            type: 'ml',
+            code: null,
+            url: detection.url,
+            service: detection.service,
+            from: latestMessage.sender?.email || '',
+            subject: latestMessage.subject || '',
+            receivedAt: new Date(latestMessage.receivedOn),
+            expiresAt: null,
+          })
+          .onConflictDoNothing({ target: authItem.messageId });
+      } finally {
+        await conn.end();
+      }
+      return { detected: true };
+    } catch (error) {
+      console.warn('[WORKFLOW_FUNCTIONS] Magic link detection failed:', error);
+      return { detected: false };
+    }
   },
 
   validateResponseNeeded: async (context) => {

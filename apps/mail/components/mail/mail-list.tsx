@@ -17,19 +17,20 @@ import type { MailSelectMode, ParsedMessage, ThreadProps } from '@/types';
 import type { ParsedDraft } from '../../../server/src/lib/driver/types';
 import { ThreadContextMenu } from '@/components/context/thread-context';
 import { useOptimisticActions } from '@/hooks/use-optimistic-actions';
-import { detectMagicLinkFromEmail } from '@/lib/magic-link-detection';
 import { useMail, type Config } from '@/components/mail/use-mail';
+import { useActiveConnection } from '@/hooks/use-connections';
 import { type ThreadDestination } from '@/lib/thread-actions';
 import { useThread, useThreads } from '@/hooks/use-threads';
 import { useSearchValue } from '@/hooks/use-search-value';
 import { EmptyStateIcon } from '../icons/empty-state-svg';
 import { highlightText } from '@/lib/email-utils.client';
-import { detectOTPFromEmail } from '@/lib/otp-detection';
+import { useOTPEmails } from '@/hooks/use-otp-emails';
 import { cn, FOLDERS, formatDate } from '@/lib/utils';
 import { useTRPC } from '@/providers/query-provider';
 import { useThreadLabels } from '@/hooks/use-labels';
 import { useSettings } from '@/hooks/use-settings';
 import { useKeyState } from '@/hooks/use-hot-key';
+import { AuthItem } from './otp-magic-link-item';
 import { VList, type VListHandle } from 'virtua';
 import { BimiAvatar } from '../ui/bimi-avatar';
 import { RenderLabels } from './render-labels';
@@ -43,7 +44,6 @@ import { Button } from '../ui/button';
 import { Avatar } from '../ui/avatar';
 import { useQueryState } from 'nuqs';
 import { useAtom } from 'jotai';
-import { toast } from 'sonner';
 
 const Thread = memo(
   function Thread({
@@ -60,17 +60,14 @@ const Thread = memo(
     const [id, setThreadId] = useQueryState('threadId');
     const [focusedIndex, setFocusedIndex] = useAtom(focusedIndexAtom);
 
-    const { latestMessage, idToUse, cleanName, otpCode, magicLink } = useMemo(() => {
+    const { latestMessage, idToUse, cleanName } = useMemo(() => {
       const latestMessage = getThreadData?.latest;
       const idToUse = latestMessage?.threadId ?? latestMessage?.id;
       const cleanName = latestMessage?.sender?.name
         ? latestMessage.sender.name.trim().replace(/^['"]|['"]$/g, '')
         : '';
 
-      const otpCode = latestMessage ? detectOTPFromEmail(latestMessage) : null;
-      const magicLink = latestMessage ? detectMagicLinkFromEmail(latestMessage) : null;
-
-      return { latestMessage, idToUse, cleanName, otpCode, magicLink };
+      return { latestMessage, idToUse, cleanName };
     }, [getThreadData?.latest]);
 
     const optimisticState = useOptimisticThreadState(idToUse ?? '');
@@ -216,23 +213,9 @@ const Thread = memo(
     const content = useMemo(() => {
       if (!latestMessage || !getThreadData) return null;
 
-      const copyCode = (e: React.MouseEvent, code: { id: string; code: string }) => {
-        e.stopPropagation();
-        e.preventDefault();
-        navigator.clipboard.writeText(code.code);
-        toast.success('Copied to clipboard');
-      };
-
-      const openMagicLink = (e: React.MouseEvent, url: string) => {
-        e.stopPropagation();
-        e.preventDefault();
-        window.open(url, '_blank');
-        toast.success('Opening magic link in new tab');
-      };
-
       return (
         <div
-          className={cn('mx-1 select-none border-b md:my-1 md:border-none')}
+          className={cn('select-none border-b md:my-1 md:border-none')}
           onClick={onClick ? onClick(latestMessage) : undefined}
           //   onMouseEnter={() => {
           //     window.dispatchEvent(new CustomEvent('emailHover', { detail: { id: idToUse } }));
@@ -245,15 +228,12 @@ const Thread = memo(
             data-thread-id={idToUse}
             key={idToUse}
             className={cn(
-              'hover:bg-offsetLight dark:hover:bg-primary/5 group relative mx-1 flex cursor-pointer flex-col items-start rounded-lg py-2 text-left text-sm hover:opacity-100',
+              'hover:bg-offsetLight dark:hover:bg-primary/5 group relative mx-1 flex cursor-pointer flex-col items-start rounded-lg py-2 text-left text-sm transition-all hover:opacity-100',
               (isMailSelected || isMailBulkSelected || isKeyboardFocused) &&
                 'border-border bg-primary/5 opacity-100',
               isKeyboardFocused && 'ring-primary/50',
               'relative',
               'group',
-
-              (otpCode || magicLink) &&
-                'outline-border bg-border hover:!bg-border pb-0 outline-2 dark:bg-[#313131] dark:outline-[#313131]',
             )}
           >
             <div
@@ -359,13 +339,7 @@ const Thread = memo(
             </div>
 
             <div
-              className={cn(
-                'relative flex w-full items-center justify-between gap-4 rounded-lg px-4 py-2',
-                displayUnread ? '' : 'opacity-60',
-                (otpCode || magicLink) && 'bg-[#1a1a1a]',
-                (otpCode || magicLink) &&
-                  'group-hover:bg-offsetLight dark:group-hover:bg-primary/5',
-              )}
+              className={`relative flex w-full items-center justify-between gap-4 px-4 ${displayUnread ? '' : 'opacity-60'}`}
             >
               <div>
                 {isMailBulkSelected ? (
@@ -506,15 +480,13 @@ const Thread = memo(
                         {latestMessage.to.map((e) => e.email).join(', ')}
                       </p>
                     ) : (
-                      <div className="flex-1">
-                        <p
-                          className={cn(
-                            'mt-1 line-clamp-1 w-[95%] min-w-0 overflow-hidden text-sm text-[#8C8C8C]',
-                          )}
-                        >
-                          {highlightText(latestMessage.subject, searchValue.highlight)}
-                        </p>
-                      </div>
+                      <p
+                        className={cn(
+                          'mt-1 line-clamp-1 w-[95%] min-w-0 overflow-hidden text-sm text-[#8C8C8C]',
+                        )}
+                      >
+                        {highlightText(latestMessage.subject, searchValue.highlight)}
+                      </p>
                     )}
                     {/* <div className="hidden md:flex">
                       {getThreadData.labels ? <MailLabels labels={getThreadData.labels} /> : null}
@@ -541,52 +513,6 @@ const Thread = memo(
                 </div>
               </div>
             </div>
-            {otpCode && (
-              <div
-                className={cn(
-                  'bg-border flex w-full items-center justify-between gap-2 p-2 dark:bg-[#313131]',
-                  !magicLink && 'rounded-b-lg',
-                )}
-              >
-                <span className="text-muted-foreground text-xs">
-                  {/* {otpCode.service} verification code */}
-                  Your 2FA Code
-                </span>
-                <div className="flex gap-1">
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    className={cn(
-                      'z-10 flex h-6 flex-row gap-1 !px-2 !py-1 text-xs',
-                      'bg-black/10 hover:bg-black/20 dark:bg-white/10 dark:hover:bg-white/20',
-                    )}
-                    onClick={(e) => copyCode(e, { id: otpCode.id, code: otpCode.code })}
-                  >
-                    <Copy className="h-2 w-2" />
-                    <span className="font-mono text-xs">{otpCode.code}</span>
-                  </Button>
-                </div>
-              </div>
-            )}
-            {magicLink && (
-              <div className="bg-border flex w-full items-center justify-between gap-2 rounded-b-lg p-2 dark:bg-[#313131]">
-                <span className="text-muted-foreground text-xs">Magic Sign-in Link</span>
-                <div className="flex gap-1">
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    className={cn(
-                      'z-10 flex h-6 flex-row items-center gap-1 !px-2 !py-1 text-xs',
-                      'bg-black/10 hover:bg-black/20 dark:bg-white/10 dark:hover:bg-white/20',
-                    )}
-                    onClick={(e) => openMagicLink(e, magicLink.url)}
-                  >
-                    <ExternalLink className="h-2 w-2" />
-                    <span className="text-xs">Open Link</span>
-                  </Button>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       );
@@ -761,6 +687,10 @@ export const MailList = memo(
       useThreads();
     const trpc = useTRPC();
     const isFetchingMail = useIsFetching({ queryKey: trpc.mail.get.queryKey() }) > 0;
+
+    const { data: activeConnection } = useActiveConnection();
+
+    const { otpEmails } = useOTPEmails(activeConnection?.id ?? '');
     const itemsRef = useRef(items);
     const parentRef = useRef<HTMLDivElement>(null);
     const vListRef = useRef<VListHandle>(null);
@@ -1008,6 +938,14 @@ export const MailList = memo(
               </div>
             ) : (
               <div className="flex flex-1 flex-col" id="mail-list-scroll">
+                <div className="flex flex-col gap-2">
+                  <div className="flex flex-col gap-2">
+                    <p>Auth Items</p>
+                  </div>
+                  {otpEmails.map((otp) => (
+                    <AuthItem key={otp.id} item={otp} />
+                  ))}
+                </div>
                 <VList
                   ref={vListRef}
                   count={filteredItems.length}

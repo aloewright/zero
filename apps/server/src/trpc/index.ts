@@ -3,6 +3,7 @@ import { cookiePreferencesRouter } from './routes/cookies';
 import { connectionsRouter } from './routes/connections';
 import { categoriesRouter } from './routes/categories';
 import { templatesRouter } from './routes/templates';
+import { authItemRouter } from './routes/auth-item';
 import { shortcutRouter } from './routes/shortcut';
 import { settingsRouter } from './routes/settings';
 import { getContext } from 'hono/context-storage';
@@ -29,6 +30,7 @@ export const appRouter = router({
   labels: labelsRouter,
   mail: mailRouter,
   notes: notesRouter,
+  auth: authItemRouter,
   shortcut: shortcutRouter,
   settings: settingsRouter,
   user: userRouter,

@@ -258,6 +258,22 @@ export const createDefaultWorkflows = (): WorkflowEngine => {
     description: 'Vectorizes thread messages for search and analysis',
     steps: [
       {
+        id: 'detect-and-store-otp',
+        name: 'Detect and Store OTP',
+        description: 'Detects OTP codes in the latest message and stores them',
+        enabled: true,
+        action: workflowFunctions.detectAndStoreOTP,
+        errorHandling: 'continue',
+      },
+      {
+        id: 'detect-and-store-magic-link',
+        name: 'Detect and Store Magic Link',
+        description: 'Detects magic login links in the message and stores them',
+        enabled: true,
+        action: workflowFunctions.detectAndStoreMagicLink,
+        errorHandling: 'continue',
+      },
+      {
         id: 'find-messages-to-vectorize',
         name: 'Find Messages to Vectorize',
         description: 'Identifies messages that need vectorization',
