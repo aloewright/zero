@@ -40,12 +40,44 @@ export const fullscreenTabIdAtom = atom<string | null>(null);
 export const addComposeTabAtom = atom(null, async (get, set, tab: Partial<ComposeTab>) => {
   const tabs = await get(composeTabsAtom);
   const isMobile = get(isMobileAtom);
-  const currentActiveId = get(activeComposeTabIdAtom);
 
-  if (isMobile && currentActiveId) {
-    const activeTab = tabs.get(currentActiveId);
-    if (activeTab && !activeTab.isMinimized) {
-      set(updateComposeTabAtom, { id: currentActiveId, updates: { isMinimized: true } });
+  if (isMobile) {
+    const entries = Array.from(tabs.entries());
+    if (entries.length > 0) {
+      const [existingId, existingTab] = entries[0];
+
+      const hasPrefill = Boolean(
+        tab?.draftId ||
+          (tab?.to && tab.to.length > 0) ||
+          (tab?.cc && tab.cc.length > 0) ||
+          (tab?.bcc && tab.bcc.length > 0) ||
+          (tab?.attachments && tab.attachments.length > 0) ||
+          (tab?.subject && tab.subject.trim().length > 0) ||
+          (tab?.body && tab.body.trim().length > 0),
+      );
+
+      if (!hasPrefill) {
+        if (existingTab?.isMinimized) {
+          set(updateComposeTabAtom, { id: existingId, updates: { isMinimized: false } });
+        }
+        set(activeComposeTabIdAtom, existingId);
+        return existingId;
+      }
+
+      const id = `compose-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      const newTab: ComposeTab = {
+        id,
+        createdAt: Date.now(),
+        lastModified: Date.now(),
+        isMinimized: false,
+        ...tab,
+      };
+
+      const newTabs = new Map<string, ComposeTab>();
+      newTabs.set(id, newTab);
+      set(composeTabsAtom, newTabs);
+      set(activeComposeTabIdAtom, id);
+      return id;
     }
   }
 

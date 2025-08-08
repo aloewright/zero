@@ -239,7 +239,7 @@ export function ComposeTabs() {
             toggleMinimize(activeTabId);
           }
         }}
-        className="bg-background fixed inset-x-0 bottom-0 z-40 h-[85vh] rounded-t-2xl border-t shadow-2xl dark:bg-[#313131]"
+        className="bg-background fixed inset-x-0 bottom-0 z-40 h-[calc(100dvh-40px)] rounded-t-2xl border-t shadow-2xl dark:bg-[#313131]"
       >
         <div className="flex h-full flex-col">
           <div className="flex justify-center py-2">
