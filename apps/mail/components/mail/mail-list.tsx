@@ -1,12 +1,10 @@
 import {
   Archive2,
-  Copy,
   ExclamationCircle,
   GroupPeople,
   PencilCompose,
   Star2,
   Trash,
-  ExternalLink,
 } from '../icons/icons';
 import { memo, useCallback, useEffect, useMemo, useRef, type ComponentProps, useState } from 'react';
 import { useOptimisticThreadState } from '@/components/mail/optimistic-thread-state';
@@ -938,10 +936,7 @@ export const MailList = memo(
               </div>
             ) : (
               <div className="flex flex-1 flex-col" id="mail-list-scroll">
-                <div className="flex flex-col gap-2">
-                  <div className="flex flex-col gap-2">
-                    <p>Auth Items</p>
-                  </div>
+                <div className="flex flex-col gap-2 border border-red-400">
                   {otpEmails.map((otp) => (
                     <AuthItem key={otp.id} item={otp} />
                   ))}

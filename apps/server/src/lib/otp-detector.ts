@@ -1,30 +1,9 @@
+import { htmlToText } from '../thread-workflow-utils/workflow-utils';
+import { generateObject, generateText } from 'ai';
 import type { ParsedMessage } from '../types';
 import { openai } from '@ai-sdk/openai';
-import { generateText } from 'ai';
 import { env } from '../env';
-
-const OTP_PATTERNS = [
-  // Service-specific patterns
-  /G-(\d{6})/, // Google format
-  /(\d{6})\s+is your/i,
-  /is\s+(\d{4,8})(?!\s*(?:px|em|rem|%|pt|vh|vw))/i, // Exclude CSS units
-
-  // Codes with formatting
-  /\b(\d{3}[-\s]\d{3})\b/, // 123-456 or 123 456
-  /\b(\d{4}[-\s]\d{4})\b/, // 1234-5678
-  /\b(\d{2}[-\s]\d{2}[-\s]\d{2})\b/, // 12-34-56
-
-  // Standalone numeric codes (4-8 digits) - exclude hex colors, dates, times
-  /(?<!#)(?<!:)(?<!-)(?<![A-Z0-9])(\d{6})(?![A-Z0-9])(?!:)(?!-)(?!\s*(?:UTC|GMT|EST|PST|PDT|CDT|MDT))/, // Exactly 6 digits
-  /(?<!#)(?<!:)(?<!-)(?<![A-Z0-9])(?!19\d{2})(?!20\d{2})(\d{4})(?![A-Z0-9])(?!:)(?!-)/, // Exactly 4 digits, not years
-  /(?<!#)(?<!:)(?<!-)(?<![A-Z0-9])(\d{5})(?![A-Z0-9])(?!:)(?!-)/, // Exactly 5 digits
-  /(?<!#)(?<!:)(?<!-)(?<![A-Z0-9])(\d{7})(?![A-Z0-9])(?!:)(?!-)/, // Exactly 7 digits
-  /(?<!#)(?<!:)(?<!-)(?<![A-Z0-9])(\d{8})(?![A-Z0-9])(?!:)(?!-)(?!\s*(?:UTC|GMT|EST|PST|PDT|CDT|MDT))/, // Exactly 8 digits
-
-  // Alphanumeric codes (less common) - match mixed letters and numbers
-  /(?<!#)(?<![A-Z0-9])([A-Z0-9]{6})(?![A-Z0-9])/, // 6 chars alphanumeric
-  /(?<!#)(?<![A-Z0-9])([A-Z0-9]{8})(?![A-Z0-9])/, // 8 chars alphanumeric
-];
+import { z } from 'zod';
 
 const isValidOTPCode = (code: string): boolean => {
   // OTP codes should contain at least one digit
@@ -64,24 +43,6 @@ const isCodeWithinURL = (text: string, index: number, length: number): boolean =
   return false;
 };
 
-const SERVICE_PATTERNS: Record<string, RegExp[]> = {
-  Google: [/google/i, /gmail/i, /youtube/i],
-  Microsoft: [/microsoft/i, /outlook/i, /office/i, /azure/i],
-  Amazon: [/amazon/i, /aws/i],
-  Apple: [/apple/i, /icloud/i],
-  Facebook: [/facebook/i, /meta/i],
-  Twitter: [/twitter/i, /x\.com/i],
-  GitHub: [/github/i],
-  LinkedIn: [/linkedin/i],
-  PayPal: [/paypal/i],
-  Stripe: [/stripe/i],
-  Discord: [/discord/i],
-  Slack: [/slack/i],
-  Notion: [/notion/i],
-  Vercel: [/vercel/i],
-  Cloudflare: [/cloudflare/i],
-};
-
 interface OTPResult {
   code: string;
   service: string;
@@ -93,86 +54,6 @@ export interface MagicLinkResult {
   service: string;
 }
 
-export const detectOTPFromThread = (thread: { messages: ParsedMessage[] }): OTPResult | null => {
-  const latestMessage = thread.messages?.[0];
-  if (!latestMessage) return null;
-
-  // Check if this looks like an OTP email
-  const otpKeywords = [
-    'verification code',
-    'verify',
-    'otp',
-    'one-time',
-    '2fa',
-    'two-factor',
-    'security code',
-    'confirmation code',
-    'access code',
-    'login code',
-  ];
-
-  const content =
-    `${latestMessage.subject ?? ''} ${latestMessage.decodedBody || latestMessage.body || ''}`.toLowerCase();
-  const hasOTPKeyword = otpKeywords.some((keyword) => content.includes(keyword));
-
-  if (!hasOTPKeyword) return null;
-
-  let code: string | null = null;
-  const bodyText = latestMessage.decodedBody || latestMessage.body || '';
-
-  // Try to find OTP code in the body
-  for (const pattern of OTP_PATTERNS) {
-    const regex = new RegExp(
-      pattern.source,
-      pattern.flags.includes('g') ? pattern.flags : pattern.flags + 'g',
-    );
-    let m;
-    while ((m = regex.exec(bodyText)) !== null) {
-      if (!m[1]) continue;
-      if (isCodeWithinURL(bodyText, m.index ?? 0, m[1].length)) continue;
-      const potentialCode = m[1].replace(/[-\s]/g, '');
-      if (isValidOTPCode(potentialCode)) {
-        code = potentialCode;
-        break;
-      }
-    }
-    if (code) break;
-  }
-
-  if (!code) return null;
-
-  let service = 'Unknown Service';
-  const fromEmail = latestMessage.sender?.email || '';
-  const fromName = latestMessage.sender?.name || '';
-
-  for (const [serviceName, patterns] of Object.entries(SERVICE_PATTERNS)) {
-    if (
-      patterns.some(
-        (pattern) =>
-          pattern.test(fromEmail) ||
-          pattern.test(fromName) ||
-          pattern.test(latestMessage.subject || ''),
-      )
-    ) {
-      service = serviceName;
-      break;
-    }
-  }
-
-  if (service === 'Unknown Service' && latestMessage.sender?.name) {
-    service = latestMessage.sender.name.split(' ')[0];
-  }
-
-  const receivedAt = new Date(latestMessage.receivedOn);
-  const expiresAt = new Date(receivedAt.getTime() + 10 * 60 * 1000);
-
-  return {
-    code,
-    service,
-    expiresAt,
-  };
-};
-
 export const detectOTPFromThreadAI = async (thread: {
   messages: ParsedMessage[];
 }): Promise<OTPResult | null> => {
@@ -180,65 +61,97 @@ export const detectOTPFromThreadAI = async (thread: {
   if (!latestMessage) return null;
 
   const subject = latestMessage.subject ?? '';
-  const body = latestMessage.decodedBody || latestMessage.body || '';
-  const fromEmail = latestMessage.sender?.email || '';
-  const fromName = latestMessage.sender?.name || '';
+  const body = latestMessage.decodedBody ?? '';
+  const fromEmail = latestMessage.sender?.email ?? '';
+  const fromName = latestMessage.sender?.name ?? '';
+  const title = latestMessage.title ?? '';
 
-  const systemPrompt = `
-You are an assistant that extracts one-time passcodes (OTP) from emails. Strict rules:
-- Only return a JSON object with: {"code":"string","service":"string"}.
-- If no valid OTP is found, return exactly {}.
-- Valid codes are 4-8 digits OR 6-8 alphanumeric (A-Z, 0-9).
-- Do not use numbers inside URLs, timestamps, years, hex colors, or sequential/repeated digits.
-- Prefer codes explicitly referenced as verification/OTP/security/login/2FA/PIN codes.
-`;
+  const sanitize = await htmlToText(body);
 
-  const userPrompt = `Subject: ${subject}\nFrom: ${fromName} <${fromEmail}>\n\nBody:\n${body}`;
+  const systemPrompt = `You are an OTP extraction specialist. Your task is to identify and extract one-time passcodes (OTP) from email content.
+
+## Output Format
+Return ONLY a JSON object in one of these formats:
+- If OTP found: {"code": "string", "service": "string"}
+- If no OTP found: {}
+
+## Valid OTP Patterns
+1. **Numeric codes**: 4-8 consecutive digits (e.g., "1234", "567890")
+2. **Alphanumeric codes**: 6-8 characters mixing letters (A-Z) and numbers (e.g., "A1B2C3", "X9Y8Z7W6")
+
+## Service Identification
+Extract the service name from:
+- Email sender domain (e.g., noreply@github.com → "GitHub")
+- Subject line mentions (e.g., "Your Netflix verification code")
+- Body content references (e.g., "Sign in to Amazon")
+
+## Code Context Indicators
+Prioritize codes that appear near these keywords:
+- "verification code", "OTP", "one-time password", "security code"
+- "2FA", "two-factor", "authentication code", "PIN"
+- "confirm", "verify", "login code", "access code"
+- "expires in", "valid for", "use this code"
+
+## Exclusion Rules
+DO NOT extract:
+- Numbers within URLs (e.g., github.com/user/123456)
+- Timestamps or dates (e.g., 14:30, 2024, 20241208)
+- Year values (1900-2099)
+- Hex color codes (#FF5500)
+- Order/invoice numbers
+- Phone numbers
+- Sequential digits (123456, 987654)
+- Repeated digits (000000, 111111)
+- Version numbers (v1.2.3)
+- IP addresses or ports
+
+## Examples
+Input: "Your GitHub verification code is 845291. This code expires in 10 minutes."
+Output: {"code": "845291", "service": "GitHub"}
+
+Input: "Visit example.com/reset/123456 to reset your password"
+Output: {}
+
+Input: "Enter A9B2K7 to complete your Apple ID sign-in"
+Output: {"code": "A9B2K7", "service": "Apple"}`;
+
+  const userPrompt = `Subject: ${subject}\nFrom: ${fromName} <${fromEmail}>\n\nTitle: ${title}\n\nBody:\n${sanitize}`;
 
   try {
-    const { text: raw } = await generateText({
+    const { object: raw } = await generateObject({
       model: openai(env.OPENAI_MODEL || 'gpt-4o'),
       system: systemPrompt,
       prompt: userPrompt,
-      temperature: 0,
+      schema: z.object({
+        code: z.string(),
+        service: z.string(),
+        expiresAt: z.string(),
+      }),
+      output: 'object',
     });
-    if (!raw || typeof raw !== 'string') return null;
 
-    let parsed: any = null;
-    try {
-      parsed = JSON.parse(raw.trim());
-    } catch {
-      const match = raw.match(/\{[\s\S]*\}/);
-      if (match) {
-        try {
-          parsed = JSON.parse(match[0]);
-        } catch {
-          return null;
-        }
-      } else {
-        return null;
-      }
-    }
+    console.log('[OTP_DETECTOR_AI] [raw]', raw);
 
-    if (!parsed || typeof parsed !== 'object' || !parsed.code) return null;
-
-    const potentialCode: string = String(parsed.code).replace(/[-\s]/g, '');
+    const potentialCode: string = String(raw.code).replace(/[-\s]/g, '');
+    console.log('[OTP_DETECTOR_AI] [potentialCode]', potentialCode);
     if (!isValidOTPCode(potentialCode)) return null;
+
+    console.log('[OTP_DETECTOR_AI] [HERE]');
 
     const content = `${subject} ${body}`;
     const idx = content.indexOf(potentialCode);
     if (idx >= 0 && isCodeWithinURL(content, idx, potentialCode.length)) return null;
 
-    let service =
-      typeof parsed.service === 'string' && parsed.service.trim().length
-        ? parsed.service.trim()
-        : 'Unknown Service';
+    console.log('[OTP_DETECTOR_AI] [HERE 2]');
+
+    let service = raw.service ? raw.service.trim() : 'Unknown Service';
     if (service === 'Unknown Service' && fromName) {
       service = fromName.split(' ')[0];
     }
 
-    const receivedAt = new Date(latestMessage.receivedOn);
-    const expiresAt = new Date(receivedAt.getTime() + 10 * 60 * 1000);
+    console.log('[OTP_DETECTOR_AI] [HERE 3]');
+
+    const expiresAt = new Date(raw.expiresAt);
 
     return { code: potentialCode, service, expiresAt };
   } catch (error) {
@@ -345,6 +258,8 @@ Rules:
 
     if (!raw || typeof raw !== 'string') return null;
 
+    // TODO: fix this
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let parsed: any = null;
     try {
       parsed = JSON.parse(raw.trim());
@@ -364,7 +279,7 @@ Rules:
     if (!parsed || typeof parsed !== 'object' || !parsed.url) return null;
 
     const url: string = String(parsed.url);
-    const urlRegex = /^https?:\/\/[\w\-._~:/?#\[\]@!$&'()*+,;=%]+$/i;
+    const urlRegex = /^https?:\/\/[\w\-._~:/?#[\]@!$&'()*+,;=%]+$/i;
     const isAsset = /\.(png|jpe?g|gif|webp|svg|css|js|ico)(\?|$)/i.test(url);
     if (!urlRegex.test(url) || isAsset) return null;
 
