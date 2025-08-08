@@ -818,11 +818,12 @@ export class GoogleMailManager implements MailManager {
       type: res.data.type ?? 'user',
     };
   }
+  //
   public async createLabel(label: {
     name: string;
     color?: { backgroundColor: string; textColor: string };
   }) {
-    await this.gmail.users.labels.create({
+    const res = await this.gmail.users.labels.create({
       userId: 'me',
       requestBody: {
         name: label.name,
@@ -836,6 +837,7 @@ export class GoogleMailManager implements MailManager {
           : undefined,
       },
     });
+    return { id: res.data.id ?? '' };
   }
   public async updateLabel(id: string, label: Label) {
     await this.gmail.users.labels.update({

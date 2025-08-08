@@ -15,26 +15,28 @@
  */
 import {
   analyzeEmailIntent,
-  generateAutomaticDraft,
-  detectSubscriptionEmail,
   categorizeSubscription,
+  detectSubscriptionEmail,
+  generateAutomaticDraft,
 } from './index';
 import {
-  SummarizeMessage,
   ReSummarizeThread,
+  SummarizeMessage,
   SummarizeThread,
 } from '../lib/brain.fallback.prompts';
-import { getZeroAgent, getZeroSocketAgent, modifyThreadLabelsInDB } from '../lib/server-utils';
-import { EPrompts, defaultLabels, type ParsedMessage } from '../types';
-import { getPrompt, getEmbeddingVector } from '../pipelines.effect';
-import { subscriptions, subscriptionThreads } from '../db/schema';
+import {
+  getZeroAgent,
+  getZeroDB,
+  getZeroSocketAgent,
+  modifyThreadLabelsInDB,
+} from '../lib/server-utils';
+import { defaultLabels, EPrompts, type ParsedMessage } from '../types';
+import { getEmbeddingVector, getPrompt } from '../pipelines.effect';
 import { messageToXML, threadToXML } from './workflow-utils';
 import type { WorkflowContext } from './workflow-engine';
 import { bulkDeleteKeys } from '../lib/bulk-delete';
 import { getPromptName } from '../pipelines';
 import { env } from 'cloudflare:workers';
-import { eq, and } from 'drizzle-orm';
-import { createDb } from '../db';
 import { Effect } from 'effect';
 
 export type WorkflowFunction = (context: WorkflowContext) => Promise<any>;
@@ -655,7 +657,7 @@ Thread Summary: ${summaryResult.summary}`;
     }
 
     const subscriptionInfo = categorizeSubscription(latestMessage);
-    const senderEmail = latestMessage.sender?.email || '';
+    const senderEmail = (latestMessage.sender?.email || '').toLowerCase();
     const senderDomain = senderEmail.split('@')[1] || '';
 
     console.log('[WORKFLOW_FUNCTIONS] Detected subscription:', {
@@ -665,75 +667,50 @@ Thread Summary: ${summaryResult.summary}`;
       sender: senderEmail,
     });
 
-    const { db, conn } = createDb(env.HYPERDRIVE.connectionString);
+    const db = await getZeroDB(context.foundConnection.userId);
 
     try {
       // Check if subscription already exists
-      const [existingSubscription] = await db
-        .select()
-        .from(subscriptions)
-        .where(
-          and(
-            eq(subscriptions.connectionId, context.connectionId),
-            eq(subscriptions.senderEmail, senderEmail),
-          ),
-        );
+      const existingSubscription = await db.getSubscription(context.connectionId, senderEmail);
 
       let subscriptionId: string;
 
       if (existingSubscription) {
         // Update existing subscription
         subscriptionId = existingSubscription.id;
-        await db
-          .update(subscriptions)
-          .set({
-            lastEmailReceivedAt: new Date(latestMessage.receivedOn),
-            emailCount: existingSubscription.emailCount + 1,
-            metadata: {
-              ...(existingSubscription.metadata || {}),
-              lastSubject: latestMessage.subject,
-            },
-            updatedAt: new Date(),
-          })
-          .where(eq(subscriptions.id, subscriptionId));
+        await db.updateSubscriptionPreferences({
+          subscriptionId,
+          userId: context.foundConnection.userId,
+          autoArchive: false,
+          category: subscriptionInfo.category,
+        });
 
         console.log('[WORKFLOW_FUNCTIONS] Updated existing subscription:', subscriptionId);
       } else {
         // Create new subscription
         subscriptionId = crypto.randomUUID();
-        await db.insert(subscriptions).values({
-          id: subscriptionId,
+        await db.createSubscription({
           userId: context.foundConnection.userId,
           connectionId: context.connectionId,
           senderEmail,
-          senderName: latestMessage.sender?.name || null,
+          senderName: latestMessage.sender?.name || undefined,
           senderDomain,
           category: subscriptionInfo.category,
-          listUnsubscribeUrl: latestMessage.listUnsubscribe || null,
-          listUnsubscribePost: latestMessage.listUnsubscribePost || null,
-          lastEmailReceivedAt: new Date(latestMessage.receivedOn),
-          emailCount: 1,
-          isActive: true,
-          autoArchive: false,
-          metadata: {
-            lastSubject: latestMessage.subject,
-          },
-          createdAt: new Date(),
-          updatedAt: new Date(),
+          listUnsubscribeUrl: latestMessage.listUnsubscribe || undefined,
+          listUnsubscribePost: latestMessage.listUnsubscribePost || undefined,
         });
 
         console.log('[WORKFLOW_FUNCTIONS] Created new subscription:', subscriptionId);
       }
 
       // Add thread to subscription_threads
-      await db.insert(subscriptionThreads).values({
+      await db.createSubscriptionThread({
         id: crypto.randomUUID(),
         subscriptionId,
         threadId: context.threadId,
         messageId: latestMessage.id,
         receivedAt: new Date(latestMessage.receivedOn),
         subject: latestMessage.subject,
-        createdAt: new Date(),
       });
 
       console.log('[WORKFLOW_FUNCTIONS] Added thread to subscription tracking');
@@ -748,8 +725,6 @@ Thread Summary: ${summaryResult.summary}`;
     } catch (error) {
       console.error('[WORKFLOW_FUNCTIONS] Error saving subscription:', error);
       return { isSubscription: false, error };
-    } finally {
-      await conn.end();
     }
   },
 
@@ -761,7 +736,7 @@ Thread Summary: ${summaryResult.summary}`;
     }
 
     try {
-      const agent = await getZeroAgent(context.connectionId);
+      const { stub: agent } = await getZeroAgent(context.connectionId);
       const userLabels = await agent.getUserLabels();
 
       // Look for subscription-related labels
@@ -771,7 +746,18 @@ Thread Summary: ${summaryResult.summary}`;
 
       if (subscriptionLabels.length === 0) {
         console.log('[WORKFLOW_FUNCTIONS] No subscription labels found');
-        return { labeled: false };
+
+        // Create a new label
+        const newLabel = await agent.createLabel({
+          name: 'subscription',
+          color: {
+            backgroundColor: '#1C2A41',
+            textColor: '#D8E6FD',
+          },
+        });
+
+        // Add the new label to the thread
+        await agent.modifyThreadLabelsInDB(context.threadId.toString(), [newLabel.id], []);
       }
 
       // Use the most appropriate label based on category
@@ -792,7 +778,7 @@ Thread Summary: ${summaryResult.summary}`;
         }
       }
 
-      await agent.modifyThreadLabelsInDB(context.threadId, [labelToApply.id], []);
+      await agent.modifyThreadLabelsInDB(context.threadId.toString(), [labelToApply.id], []);
       console.log('[WORKFLOW_FUNCTIONS] Applied subscription label:', labelToApply.name);
 
       return { labeled: true, labelId: labelToApply.id, labelName: labelToApply.name };

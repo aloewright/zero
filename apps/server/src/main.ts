@@ -1,40 +1,42 @@
 import {
+  account,
+  connection,
+  emailTemplate,
+  note,
+  session,
+  subscriptions,
+  subscriptionThreads,
+  user,
+  userHotkeys,
+  userSettings,
+  writingStyleMatrix,
+} from './db/schema';
+import {
   createUpdatedMatrixFromNewEmail,
   initializeStyleMatrixFromEmail,
   type EmailMatrix,
   type WritingStyleMatrix,
 } from './services/writing-style-service';
 import {
-  account,
-  connection,
-  note,
-  session,
-  user,
-  userHotkeys,
-  userSettings,
-  writingStyleMatrix,
-  emailTemplate,
-} from './db/schema';
-import {
   toAttachmentFiles,
-  type SerializedAttachment,
   type AttachmentFile,
+  type SerializedAttachment,
 } from './lib/attachments';
 import { SyncThreadsCoordinatorWorkflow } from './workflows/sync-threads-coordinator-workflow';
-import { WorkerEntrypoint, DurableObject, RpcTarget } from 'cloudflare:workers';
-// import { instrument, type ResolveConfigFn } from '@microlabs/otel-cf-workers';
+import { DurableObject, RpcTarget, WorkerEntrypoint } from 'cloudflare:workers';
 import { getZeroAgent, getZeroDB, verifyToken } from './lib/server-utils';
 import { SyncThreadsWorkflow } from './workflows/sync-threads-workflow';
 import { ShardRegistry, ZeroAgent, ZeroDriver } from './routes/agent';
+import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { ThreadSyncWorker } from './routes/agent/sync-worker';
 import { oAuthDiscoveryMetadata } from 'better-auth/plugins';
 import { EProviders, type IEmailSendBatch } from './types';
-import { eq, and, desc, asc, inArray } from 'drizzle-orm';
 import { ThinkingMCP } from './lib/sequential-thinking';
 import { contextStorage } from 'hono/context-storage';
 import { defaultUserSettings } from './lib/schemas';
 import { createLocalJWKSet, jwtVerify } from 'jose';
 import { enableBrainFunction } from './lib/brain';
+// import { instrument, type ResolveConfigFn } from '@microlabs/otel-cf-workers';
 import { trpcServer } from '@hono/trpc-server';
 import { agentsMiddleware } from 'hono-agents';
 import { ZeroMCP } from './routes/agent/mcp';
@@ -198,6 +200,70 @@ export class DbRpcDO extends RpcTarget {
 
   async updateEmailTemplate(templateId: string, data: Partial<typeof emailTemplate.$inferInsert>) {
     return await this.mainDo.updateEmailTemplate(this.userId, templateId, data);
+  }
+
+  async createSubscriptionThread(params: {
+    id: string;
+    subscriptionId: string;
+    threadId: string;
+    messageId: string;
+    receivedAt: Date;
+    subject: string;
+  }) {
+    return await this.mainDo.createSubscriptionThread(params);
+  }
+
+  async createSubscription(params: {
+    userId: string;
+    connectionId: string;
+    senderEmail: string;
+    senderName?: string;
+    senderDomain: string;
+    category: string;
+    listUnsubscribeUrl?: string;
+    listUnsubscribePost?: string;
+  }) {
+    return await this.mainDo.createSubscription(params);
+  }
+
+  async listSubscriptions(params: {
+    userId: string;
+    connectionId?: string;
+    category?: string;
+    isActive?: boolean;
+    limit?: number;
+    offset?: number;
+  }) {
+    return await this.mainDo.listSubscriptions(params);
+  }
+
+  async getSubscription(subscriptionId: string, userId: string) {
+    return await this.mainDo.getSubscription(subscriptionId, userId);
+  }
+
+  async unsubscribeFromEmail(subscriptionId: string, userId: string) {
+    return await this.mainDo.unsubscribeFromEmail(subscriptionId, userId);
+  }
+
+  async resubscribeToEmail(subscriptionId: string, userId: string) {
+    return await this.mainDo.resubscribeToEmail(subscriptionId, userId);
+  }
+
+  async updateSubscriptionPreferences(params: {
+    subscriptionId: string;
+    userId: string;
+    autoArchive?: boolean;
+    category?: string;
+  }) {
+    return await this.mainDo.updateSubscriptionPreferences(params);
+  }
+
+  async bulkUnsubscribeEmails(subscriptionIds: string[], userId: string) {
+    return await this.mainDo.bulkUnsubscribeEmails(subscriptionIds, userId);
+  }
+
+  async getSubscriptionStats(userId: string, connectionId?: string) {
+    return await this.mainDo.getSubscriptionStats(userId, connectionId);
   }
 }
 
@@ -560,6 +626,322 @@ class ZeroDB extends DurableObject<ZeroEnv> {
       .set({ ...data, updatedAt: new Date() })
       .where(and(eq(emailTemplate.id, templateId), eq(emailTemplate.userId, userId)))
       .returning();
+  }
+
+  async createSubscription(params: {
+    userId: string;
+    connectionId: string;
+    senderEmail: string;
+    senderName?: string;
+    senderDomain: string;
+    category: string;
+    listUnsubscribeUrl?: string;
+    listUnsubscribePost?: string;
+  }) {
+    return await this.db
+      .insert(subscriptions)
+      .values({
+        userId: params.userId,
+        connectionId: params.connectionId,
+        senderEmail: params.senderEmail,
+        senderName: params.senderName,
+        senderDomain: params.senderDomain,
+        category: params.category as (typeof subscriptions.$inferInsert)['category'],
+        listUnsubscribeUrl: params.listUnsubscribeUrl,
+        listUnsubscribePost: params.listUnsubscribePost,
+        id: crypto.randomUUID(),
+        lastEmailReceivedAt: new Date(),
+      })
+      .returning({ id: subscriptions.id });
+  }
+
+  async createSubscriptionThread(params: {
+    id: string;
+    subscriptionId: string;
+    threadId: string;
+    messageId: string;
+    receivedAt: Date;
+    subject: string;
+  }) {
+    return await this.db
+      .insert(subscriptionThreads)
+      .values({
+        ...params,
+        id: crypto.randomUUID(),
+      })
+      .returning({ id: subscriptionThreads.id });
+  }
+
+  async listSubscriptions(params: {
+    userId: string;
+    connectionId?: string;
+    category?: string;
+    isActive?: boolean;
+    limit?: number;
+    offset?: number;
+  }) {
+    const { db, conn } = createDb(env.HYPERDRIVE.connectionString);
+
+    try {
+      const conditions = [eq(subscriptions.userId, params.userId)];
+
+      if (params.connectionId) {
+        conditions.push(eq(subscriptions.connectionId, params.connectionId));
+      }
+
+      if (params.category) {
+        conditions.push(eq(subscriptions.category, params.category));
+      }
+
+      if (params.isActive !== undefined) {
+        conditions.push(eq(subscriptions.isActive, params.isActive));
+      }
+
+      const [items, totalResult] = await Promise.all([
+        db
+          .select({
+            id: subscriptions.id,
+            senderEmail: subscriptions.senderEmail,
+            senderName: subscriptions.senderName,
+            senderDomain: subscriptions.senderDomain,
+            category: subscriptions.category,
+            listUnsubscribeUrl: subscriptions.listUnsubscribeUrl,
+            listUnsubscribePost: subscriptions.listUnsubscribePost,
+            lastEmailReceivedAt: subscriptions.lastEmailReceivedAt,
+            emailCount: subscriptions.emailCount,
+            isActive: subscriptions.isActive,
+            userUnsubscribedAt: subscriptions.userUnsubscribedAt,
+            autoArchive: subscriptions.autoArchive,
+            metadata: subscriptions.metadata,
+            createdAt: subscriptions.createdAt,
+          })
+          .from(subscriptions)
+          .where(and(...conditions))
+          .orderBy(desc(subscriptions.lastEmailReceivedAt))
+          .limit(params.limit || 50)
+          .offset(params.offset || 0),
+        db
+          .select({ count: sql<number>`count(*)` })
+          .from(subscriptions)
+          .where(and(...conditions)),
+      ]);
+
+      const total = totalResult[0]?.count || 0;
+
+      return {
+        items,
+        total,
+        hasMore: (params.offset || 0) + items.length < total,
+      };
+    } finally {
+      await conn.end();
+    }
+  }
+
+  async getSubscription(subscriptionId: string, userId: string) {
+    const { db, conn } = createDb(env.HYPERDRIVE.connectionString);
+
+    try {
+      const [subscription] = await db
+        .select()
+        .from(subscriptions)
+        .where(and(eq(subscriptions.id, subscriptionId), eq(subscriptions.userId, userId)));
+
+      if (!subscription) {
+        throw new Error('Subscription not found');
+      }
+
+      // Get recent threads
+      const recentThreads = await db
+        .select({
+          threadId: subscriptionThreads.threadId,
+          messageId: subscriptionThreads.messageId,
+          receivedAt: subscriptionThreads.receivedAt,
+          subject: subscriptionThreads.subject,
+        })
+        .from(subscriptionThreads)
+        .where(eq(subscriptionThreads.subscriptionId, subscriptionId))
+        .orderBy(desc(subscriptionThreads.receivedAt))
+        .limit(10);
+
+      return {
+        ...subscription,
+        recentThreads,
+      };
+    } finally {
+      await conn.end();
+    }
+  }
+
+  async unsubscribeFromEmail(subscriptionId: string, userId: string) {
+    const { db, conn } = createDb(env.HYPERDRIVE.connectionString);
+
+    try {
+      // Get subscription details
+      const [subscription] = await db
+        .select()
+        .from(subscriptions)
+        .where(and(eq(subscriptions.id, subscriptionId), eq(subscriptions.userId, userId)));
+
+      if (!subscription) {
+        throw new Error('Subscription not found');
+      }
+
+      // Update subscription as inactive
+      await db
+        .update(subscriptions)
+        .set({
+          isActive: false,
+          userUnsubscribedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(subscriptions.id, subscriptionId));
+
+      // If there's a List-Unsubscribe header, return the action
+      let unsubscribeAction = null;
+      if (subscription.listUnsubscribeUrl) {
+        const { getListUnsubscribeAction } = await import('../../lib/email-utils');
+        unsubscribeAction = getListUnsubscribeAction({
+          listUnsubscribe: subscription.listUnsubscribeUrl,
+          listUnsubscribePost: subscription.listUnsubscribePost || undefined,
+        });
+      }
+
+      return {
+        success: true,
+        unsubscribeAction,
+      };
+    } finally {
+      await conn.end();
+    }
+  }
+
+  async resubscribeToEmail(subscriptionId: string, userId: string) {
+    const { db, conn } = createDb(env.HYPERDRIVE.connectionString);
+
+    try {
+      await db
+        .update(subscriptions)
+        .set({
+          isActive: true,
+          userUnsubscribedAt: null,
+          updatedAt: new Date(),
+        })
+        .where(and(eq(subscriptions.id, subscriptionId), eq(subscriptions.userId, userId)));
+
+      return { success: true };
+    } finally {
+      await conn.end();
+    }
+  }
+
+  async updateSubscriptionPreferences(params: {
+    subscriptionId: string;
+    userId: string;
+    autoArchive?: boolean;
+    category?: string;
+  }) {
+    const { db, conn } = createDb(env.HYPERDRIVE.connectionString);
+
+    try {
+      const updateData: any = {
+        updatedAt: new Date(),
+      };
+
+      if (params.autoArchive !== undefined) {
+        updateData.autoArchive = params.autoArchive;
+      }
+
+      if (params.category) {
+        updateData.category = params.category;
+      }
+
+      await db
+        .update(subscriptions)
+        .set(updateData)
+        .where(
+          and(eq(subscriptions.id, params.subscriptionId), eq(subscriptions.userId, params.userId)),
+        );
+
+      return { success: true };
+    } finally {
+      await conn.end();
+    }
+  }
+
+  async bulkUnsubscribeEmails(subscriptionIds: string[], userId: string) {
+    const { db, conn } = createDb(env.HYPERDRIVE.connectionString);
+
+    try {
+      await db
+        .update(subscriptions)
+        .set({
+          isActive: false,
+          userUnsubscribedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(
+          and(eq(subscriptions.userId, userId), sql`${subscriptions.id} = ANY(${subscriptionIds})`),
+        );
+
+      return { success: true, count: subscriptionIds.length };
+    } finally {
+      await conn.end();
+    }
+  }
+
+  async getSubscriptionStats(userId: string, connectionId?: string) {
+    const { db, conn } = createDb(env.HYPERDRIVE.connectionString);
+
+    try {
+      const conditions = [eq(subscriptions.userId, userId)];
+
+      if (connectionId) {
+        conditions.push(eq(subscriptions.connectionId, connectionId));
+      }
+
+      // Get stats by category
+      const categoryStats = await db
+        .select({
+          category: subscriptions.category,
+          count: sql<number>`count(*)`,
+          activeCount: sql<number>`count(*) filter (where ${subscriptions.isActive} = true)`,
+        })
+        .from(subscriptions)
+        .where(and(...conditions))
+        .groupBy(subscriptions.category);
+
+      // Get overall stats
+      const [overallStats] = await db
+        .select({
+          total: sql<number>`count(*)`,
+          active: sql<number>`count(*) filter (where ${subscriptions.isActive} = true)`,
+          inactive: sql<number>`count(*) filter (where ${subscriptions.isActive} = false)`,
+          avgEmailsPerSubscription: sql<number>`avg(${subscriptions.emailCount})`,
+        })
+        .from(subscriptions)
+        .where(and(...conditions));
+
+      // Get recent activity
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      const [recentActivity] = await db
+        .select({
+          recentlyReceived: sql<number>`count(*) filter (where ${subscriptions.lastEmailReceivedAt} >= ${thirtyDaysAgo})`,
+          recentlyUnsubscribed: sql<number>`count(*) filter (where ${subscriptions.userUnsubscribedAt} >= ${thirtyDaysAgo})`,
+        })
+        .from(subscriptions)
+        .where(and(...conditions));
+
+      return {
+        overall: overallStats,
+        byCategory: categoryStats,
+        recentActivity,
+      };
+    } finally {
+      await conn.end();
+    }
   }
 }
 
@@ -1138,14 +1520,14 @@ export default class Entry extends WorkerEntrypoint<ZeroEnv> {
 }
 
 export {
+  ShardRegistry,
+  SyncThreadsCoordinatorWorkflow,
+  SyncThreadsWorkflow,
+  ThinkingMCP,
+  ThreadSyncWorker,
+  WorkflowRunner,
   ZeroAgent,
-  ZeroMCP,
   ZeroDB,
   ZeroDriver,
-  ThinkingMCP,
-  WorkflowRunner,
-  ThreadSyncWorker,
-  SyncThreadsWorkflow,
-  SyncThreadsCoordinatorWorkflow,
-  ShardRegistry,
+  ZeroMCP,
 };

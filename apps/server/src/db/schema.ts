@@ -8,10 +8,21 @@ import {
   primaryKey,
   unique,
   index,
+  pgEnum,
 } from 'drizzle-orm/pg-core';
 import { defaultUserSettings } from '../lib/schemas';
 
 export const createTable = pgTableCreator((name) => `mail0_${name}`);
+
+// Enums
+export const subscriptionCategoryEnum = pgEnum('subscription_category', [
+  'newsletter',
+  'promotional',
+  'social',
+  'development',
+  'transactional',
+  'general',
+]);
 
 export const user = createTable('user', {
   id: text('id').primaryKey(),
@@ -336,12 +347,7 @@ export const subscriptions = createTable(
     senderEmail: text('sender_email').notNull(),
     senderName: text('sender_name'),
     senderDomain: text('sender_domain').notNull(),
-    category: text('category')
-      .$type<
-        'newsletter' | 'promotional' | 'social' | 'development' | 'transactional' | 'general'
-      >()
-      .notNull()
-      .default('general'),
+    category: subscriptionCategoryEnum('category').notNull().default('general'),
     listUnsubscribeUrl: text('list_unsubscribe_url'),
     listUnsubscribePost: text('list_unsubscribe_post'),
     lastEmailReceivedAt: timestamp('last_email_received_at').notNull(),

@@ -1,3 +1,5 @@
+CREATE TYPE "subscription_category" AS ENUM('newsletter', 'promotional', 'social', 'development', 'transactional', 'general');
+--> statement-breakpoint
 CREATE TABLE "mail0_subscription_threads" (
 	"id" text PRIMARY KEY NOT NULL,
 	"subscription_id" text NOT NULL,
@@ -15,7 +17,7 @@ CREATE TABLE "mail0_subscriptions" (
 	"sender_email" text NOT NULL,
 	"sender_name" text,
 	"sender_domain" text NOT NULL,
-	"category" text DEFAULT 'general' NOT NULL,
+	"category" "subscription_category" DEFAULT 'general' NOT NULL,
 	"list_unsubscribe_url" text,
 	"list_unsubscribe_post" text,
 	"last_email_received_at" timestamp NOT NULL,
@@ -26,7 +28,8 @@ CREATE TABLE "mail0_subscriptions" (
 	"metadata" jsonb,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
-	CONSTRAINT "subscriptions_connection_sender_unique" UNIQUE("connection_id","sender_email")
+	CONSTRAINT "subscriptions_connection_sender_unique" UNIQUE("connection_id","sender_email"),
+	CONSTRAINT "subscriptions_sender_email_lowercase" CHECK ("sender_email" = lower("sender_email"))
 );
 --> statement-breakpoint
 ALTER TABLE "mail0_account" DROP CONSTRAINT "mail0_account_user_id_mail0_user_id_fk";
@@ -61,7 +64,7 @@ ALTER TABLE "mail0_user_settings" ADD CONSTRAINT "mail0_user_settings_user_id_ma
 CREATE INDEX "account_user_id_idx" ON "mail0_account" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "account_provider_user_id_idx" ON "mail0_account" USING btree ("provider_id","user_id");--> statement-breakpoint
 CREATE INDEX "account_expires_at_idx" ON "mail0_account" USING btree ("access_token_expires_at");--> statement-breakpoint
-CREATE INDEX "connection_user_id_idx" ON "mail0_connection" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS  "connection_user_id_idx" ON "mail0_connection" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "connection_expires_at_idx" ON "mail0_connection" USING btree ("expires_at");--> statement-breakpoint
 CREATE INDEX "connection_provider_id_idx" ON "mail0_connection" USING btree ("provider_id");--> statement-breakpoint
 CREATE INDEX "early_access_is_early_access_idx" ON "mail0_early_access" USING btree ("is_early_access");--> statement-breakpoint

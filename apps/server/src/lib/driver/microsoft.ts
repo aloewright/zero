@@ -879,7 +879,7 @@ export class OutlookMailManager implements MailManager {
     );
 
     try {
-      const newFolder: MailFolder = await this.graphClient.api('/me/mailfolders').post({
+      return await this.graphClient.api('/me/mailfolders').post({
         displayName: label.name,
         // parentFolderId: 'inbox', // Optional: Create under a specific parent folder
       });

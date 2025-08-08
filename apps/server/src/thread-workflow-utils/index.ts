@@ -1,7 +1,7 @@
+import { connection, subscriptionCategoryEnum } from '../db/schema';
 import type { IGetThreadResponse } from '../lib/driver/types';
 import { composeEmail } from '../trpc/routes/ai/compose';
 import { type ParsedMessage } from '../types';
-import { connection } from '../db/schema';
 
 const shouldGenerateDraft = async (
   thread: IGetThreadResponse,
@@ -137,6 +137,50 @@ const generateAutomaticDraft = async (
   }
 };
 
+// Common subscription subject patterns
+const subscriptionSubjectPatterns = [
+  /newsletter/,
+  /weekly.*digest/,
+  /daily.*digest/,
+  /monthly.*update/,
+  /\[.*\]/, // Often newsletters use [Company Name] format
+  /issue\s*#?\d+/i,
+  /edition/i,
+  /bulletin/i,
+];
+
+// Common subscription sender patterns
+const subscriptionSenderPatterns = [
+  /newsletter/,
+  /no-?reply/,
+  /donotreply/,
+  /noreply/,
+  /notifications?/,
+  /updates?/,
+  /digest/,
+  /bulletin/,
+  /announcements?/,
+  /marketing/,
+  /promotions?/,
+  /campaigns?/,
+];
+
+// Common subscription body patterns
+const subscriptionBodyPatterns = [
+  /unsubscribe/i,
+  /opt-?out/i,
+  /email.*preferences/i,
+  /manage.*subscription/i,
+  /update.*preferences/i,
+  /stop.*receiving/i,
+  /remove.*from.*list/i,
+  /click.*here.*to.*unsubscribe/i,
+  /no.*longer.*wish.*receive/i,
+  /view.*in.*browser/i,
+  /this.*email.*was.*sent.*to/i,
+  /you.*are.*receiving.*this.*because/i,
+];
+
 const detectSubscriptionEmail = (message: ParsedMessage): boolean => {
   // Check for List-Unsubscribe header
   if (message.listUnsubscribe) {
@@ -149,22 +193,6 @@ const detectSubscriptionEmail = (message: ParsedMessage): boolean => {
   const subject = message.subject?.toLowerCase() || '';
   const decodedBody = message.decodedBody?.toLowerCase() || '';
 
-  // Common subscription sender patterns
-  const subscriptionSenderPatterns = [
-    /newsletter/,
-    /no-?reply/,
-    /donotreply/,
-    /noreply/,
-    /notifications?/,
-    /updates?/,
-    /digest/,
-    /bulletin/,
-    /announcements?/,
-    /marketing/,
-    /promotions?/,
-    /campaigns?/,
-  ];
-
   // Check sender email/name
   const senderIsSubscription = subscriptionSenderPatterns.some(
     (pattern) => pattern.test(senderEmail) || pattern.test(senderName),
@@ -175,18 +203,6 @@ const detectSubscriptionEmail = (message: ParsedMessage): boolean => {
     return true;
   }
 
-  // Common subscription subject patterns
-  const subscriptionSubjectPatterns = [
-    /newsletter/,
-    /weekly.*digest/,
-    /daily.*digest/,
-    /monthly.*update/,
-    /\[.*\]/, // Often newsletters use [Company Name] format
-    /issue\s*#?\d+/i,
-    /edition/i,
-    /bulletin/i,
-  ];
-
   const subjectIsSubscription = subscriptionSubjectPatterns.some((pattern) =>
     pattern.test(subject),
   );
@@ -195,22 +211,6 @@ const detectSubscriptionEmail = (message: ParsedMessage): boolean => {
     console.log('[DETECT_SUBSCRIPTION] Subject matches subscription pattern');
     return true;
   }
-
-  // Common subscription body patterns
-  const subscriptionBodyPatterns = [
-    /unsubscribe/i,
-    /opt-?out/i,
-    /email.*preferences/i,
-    /manage.*subscription/i,
-    /update.*preferences/i,
-    /stop.*receiving/i,
-    /remove.*from.*list/i,
-    /click.*here.*to.*unsubscribe/i,
-    /no.*longer.*wish.*receive/i,
-    /view.*in.*browser/i,
-    /this.*email.*was.*sent.*to/i,
-    /you.*are.*receiving.*this.*because/i,
-  ];
 
   const bodyIsSubscription = subscriptionBodyPatterns.some((pattern) => pattern.test(decodedBody));
 
@@ -225,7 +225,7 @@ const detectSubscriptionEmail = (message: ParsedMessage): boolean => {
 const categorizeSubscription = (
   message: ParsedMessage,
 ): {
-  category: 'newsletter' | 'promotional' | 'social' | 'development' | 'transactional' | 'general';
+  category: (typeof subscriptionCategoryEnum.enumValues)[number];
   confidence: number;
 } => {
   const content = (message.decodedBody || message.body || '').toLowerCase();

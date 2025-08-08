@@ -76,7 +76,7 @@ export const navigationConfig: Record<string, NavConfig> = {
             title: m['navigation.sidebar.subscriptions'](),
             url: '/mail/subscriptions',
             icon: Bell,
-            shortcut: 'g + s',
+            shortcut: 'g + u',
           },
         ],
       },

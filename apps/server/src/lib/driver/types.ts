@@ -107,7 +107,7 @@ export interface MailManager {
   createLabel(label: {
     name: string;
     color?: { backgroundColor: string; textColor: string };
-  }): Promise<void>;
+  }): Promise<{ id: string }>;
   updateLabel(
     id: string,
     label: { name: string; color?: { backgroundColor: string; textColor: string } },

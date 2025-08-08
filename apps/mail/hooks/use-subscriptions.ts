@@ -85,7 +85,7 @@ export const useSubscriptions = () => {
   const statsQuery = useQuery(
     trpc.subscriptions.stats.queryOptions(
       {
-        connectionId: activeConnection?.id,
+        connectionId: activeConnection?.id || '',
       },
       {
         enabled: !!activeConnection?.id,
@@ -103,7 +103,7 @@ export const useSubscriptions = () => {
       if (result.unsubscribeAction) {
         const action = result.unsubscribeAction;
         if (action.type === 'get' && action.url) {
-          window.open(action.url, '_blank');
+          window.open(action.url, '_blank', 'noopener,noreferrer');
         }
         // For 'post' and 'email' types, we'd need additional UI
       }

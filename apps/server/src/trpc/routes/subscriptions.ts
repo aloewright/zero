@@ -1,16 +1,15 @@
-import { getZeroAgent } from '../../lib/server-utils';
-import { router, publicProcedure } from '../trpc';
+import { getZeroAgent, getZeroDB } from '../../lib/server-utils';
+import { subscriptionCategoryEnum } from '../../db/schema';
+import { router, privateProcedure } from '../trpc';
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
 
 export const subscriptionsRouter = router({
-  list: publicProcedure
+  list: privateProcedure
     .input(
       z.object({
         connectionId: z.string(),
-        category: z
-          .enum(['newsletter', 'promotional', 'social', 'development', 'transactional', 'general'])
-          .optional(),
+        category: z.enum(subscriptionCategoryEnum.enumValues).optional(),
         isActive: z.boolean().optional(),
         limit: z.number().min(1).max(100).default(50),
         offset: z.number().min(0).default(0),
@@ -24,9 +23,9 @@ export const subscriptionsRouter = router({
         });
       }
 
-      const agent = await getZeroAgent(input.connectionId);
+      const db = await getZeroDB(ctx.sessionUser.id);
 
-      return await agent.listSubscriptions({
+      return await db.listSubscriptions({
         userId: ctx.sessionUser.id,
         connectionId: input.connectionId,
         category: input.category,
@@ -36,7 +35,7 @@ export const subscriptionsRouter = router({
       });
     }),
 
-  get: publicProcedure
+  get: privateProcedure
     .input(
       z.object({
         subscriptionId: z.string(),
@@ -51,11 +50,11 @@ export const subscriptionsRouter = router({
         });
       }
 
-      const agent = await getZeroAgent(input.connectionId);
+      const db = await getZeroDB(ctx.sessionUser.id);
 
       try {
-        return await agent.getSubscription(input.subscriptionId, ctx.sessionUser.id);
-      } catch (_error) {
+        return await db.getSubscription(input.subscriptionId, ctx.sessionUser.id);
+      } catch {
         throw new TRPCError({
           code: 'NOT_FOUND',
           message: 'Subscription not found',
@@ -63,7 +62,7 @@ export const subscriptionsRouter = router({
       }
     }),
 
-  unsubscribe: publicProcedure
+  unsubscribe: privateProcedure
     .input(
       z.object({
         subscriptionId: z.string(),
@@ -78,11 +77,11 @@ export const subscriptionsRouter = router({
         });
       }
 
-      const agent = await getZeroAgent(input.connectionId);
+      const db = await getZeroDB(ctx.sessionUser.id);
 
       try {
-        return await agent.unsubscribeFromEmail(input.subscriptionId, ctx.sessionUser.id);
-      } catch (_error) {
+        return await db.unsubscribeFromEmail(input.subscriptionId, ctx.sessionUser.id);
+      } catch {
         throw new TRPCError({
           code: 'NOT_FOUND',
           message: 'Subscription not found',
@@ -90,15 +89,13 @@ export const subscriptionsRouter = router({
       }
     }),
 
-  updatePreferences: publicProcedure
+  updatePreferences: privateProcedure
     .input(
       z.object({
         subscriptionId: z.string(),
         connectionId: z.string(),
         autoArchive: z.boolean().optional(),
-        category: z
-          .enum(['newsletter', 'promotional', 'social', 'development', 'transactional', 'general'])
-          .optional(),
+        category: z.enum(subscriptionCategoryEnum.enumValues).optional(),
       }),
     )
     .mutation(async ({ input, ctx }) => {
@@ -109,9 +106,9 @@ export const subscriptionsRouter = router({
         });
       }
 
-      const agent = await getZeroAgent(input.connectionId);
+      const db = await getZeroDB(ctx.sessionUser.id);
 
-      return await agent.updateSubscriptionPreferences({
+      return await db.updateSubscriptionPreferences({
         subscriptionId: input.subscriptionId,
         userId: ctx.sessionUser.id,
         autoArchive: input.autoArchive,
@@ -119,7 +116,7 @@ export const subscriptionsRouter = router({
       });
     }),
 
-  resubscribe: publicProcedure
+  resubscribe: privateProcedure
     .input(
       z.object({
         subscriptionId: z.string(),
@@ -134,15 +131,15 @@ export const subscriptionsRouter = router({
         });
       }
 
-      const agent = await getZeroAgent(input.connectionId);
+      const db = await getZeroDB(ctx.sessionUser.id);
 
-      return await agent.resubscribeToEmail(input.subscriptionId, ctx.sessionUser.id);
+      return await db.resubscribeToEmail(input.subscriptionId, ctx.sessionUser.id);
     }),
 
-  stats: publicProcedure
+  stats: privateProcedure
     .input(
       z.object({
-        connectionId: z.string().optional(),
+        connectionId: z.string(),
       }),
     )
     .query(async ({ input, ctx }) => {
@@ -153,19 +150,12 @@ export const subscriptionsRouter = router({
         });
       }
 
-      if (!input.connectionId) {
-        throw new TRPCError({
-          code: 'BAD_REQUEST',
-          message: 'Connection ID is required',
-        });
-      }
+      const db = await getZeroDB(ctx.sessionUser.id);
 
-      const agent = await getZeroAgent(input.connectionId);
-
-      return await agent.getSubscriptionStats(ctx.sessionUser.id, input.connectionId);
+      return await db.getSubscriptionStats(ctx.sessionUser.id, input.connectionId);
     }),
 
-  bulkUnsubscribe: publicProcedure
+  bulkUnsubscribe: privateProcedure
     .input(
       z.object({
         subscriptionIds: z.array(z.string()),
@@ -180,8 +170,8 @@ export const subscriptionsRouter = router({
         });
       }
 
-      const agent = await getZeroAgent(input.connectionId);
+      const db = await getZeroDB(ctx.sessionUser.id);
 
-      return await agent.bulkUnsubscribeEmails(input.subscriptionIds, ctx.sessionUser.id);
+      return await db.bulkUnsubscribeEmails(input.subscriptionIds, ctx.sessionUser.id);
     }),
 });

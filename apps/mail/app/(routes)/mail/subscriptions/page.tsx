@@ -30,12 +30,10 @@ import { VList } from 'virtua';
 function SubscriptionItemComponent({
   subscription,
   onUnsubscribe,
-  // onResubscribe,
   isLoading,
 }: {
   subscription: SubscriptionItem;
   onUnsubscribe: (id: string) => void;
-  // onResubscribe: (id: string) => void;
   isLoading: boolean;
 }) {
   const getDomainIcon = () => {
@@ -46,6 +44,10 @@ function SubscriptionItemComponent({
         className={cn('h-8 w-8 rounded-full', 'border')}
       />
     );
+  };
+
+  const handleUnsubscribe = () => {
+    onUnsubscribe(subscription.id);
   };
 
   return (
@@ -78,24 +80,14 @@ function SubscriptionItemComponent({
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => onUnsubscribe(subscription.id)}
+                    onClick={handleUnsubscribe}
                     disabled={isLoading}
                     className="h-8 rounded-lg px-2 text-red-400 hover:text-red-500"
                   >
                     <XCircle className="h-4 w-4" />
                     Unsubscribe
                   </Button>
-                ) : // <Button
-                //   variant="ghost"
-                //   size="sm"
-                //   onClick={() => onResubscribe(subscription.id)}
-                //   disabled={isLoading}
-                //   className="h-8 rounded-lg px-2"
-                // >
-                //   <Mail className="mr-1 h-4 w-4" />
-                //   Resubscribe
-                // </Button>
-                null}
+                ) : null}
               </div>
             </div>
 
@@ -128,7 +120,6 @@ export default function SubscriptionsPage() {
     setCategoryFilter,
     setActiveFilter,
     handleUnsubscribe,
-    // handleResubscribe,
     handleBulkUnsubscribe,
     refetch,
   } = useSubscriptions();
@@ -138,7 +129,7 @@ export default function SubscriptionsPage() {
       <div className="rounded-inherit h-full w-full overflow-hidden">
         <div className="bg-panelLight dark:bg-panelDark block w-full shadow-sm md:mr-[3px] md:rounded-2xl lg:flex lg:h-[calc(100dvh-8px)] lg:shadow-sm">
           <div className="w-full md:h-[calc(100dvh-10px)]">
-            <div className="relative z-[1] h-[calc(100dvh-(2px+2px))] w-full overflow-hidden pt-0">
+            <div className="relative z-[1] h-[calc(100dvh-var(--header-offset))] w-full overflow-hidden pt-0">
               <div>
                 <div
                   className={cn(
@@ -174,7 +165,7 @@ export default function SubscriptionsPage() {
 
                         <Select
                           value={categoryFilter}
-                          onValueChange={(v) => setCategoryFilter(v as any)}
+                          onValueChange={(v) => setActiveFilter(v as 'all' | 'active' | 'inactive')}
                         >
                           <SelectTrigger className="w-[100px] rounded-lg md:w-[120px]">
                             <SelectValue placeholder="Category" />
@@ -257,7 +248,6 @@ export default function SubscriptionsPage() {
                         key={subscription.id}
                         subscription={subscription}
                         onUnsubscribe={handleUnsubscribe}
-                        // onResubscribe={handleResubscribe}
                         isLoading={isUnsubscribing || isResubscribing}
                       />
                     ))}
