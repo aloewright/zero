@@ -870,10 +870,8 @@ class ZeroDB extends DurableObject<ZeroEnv> {
   }
 
   async bulkUnsubscribeEmails(subscriptionIds: string[], userId: string) {
-    const { db, conn } = createDb(env.HYPERDRIVE.connectionString);
-
     try {
-      await db
+      await this.db
         .update(subscriptions)
         .set({
           isActive: false,
@@ -885,14 +883,12 @@ class ZeroDB extends DurableObject<ZeroEnv> {
         );
 
       return { success: true, count: subscriptionIds.length };
-    } finally {
-      await conn.end();
+    } catch {
+      throw new Error('Failed to bulk unsubscribe emails');
     }
   }
 
   async getSubscriptionStats(userId: string, connectionId?: string) {
-    const { db, conn } = createDb(env.HYPERDRIVE.connectionString);
-
     try {
       const conditions = [eq(subscriptions.userId, userId)];
 
@@ -901,7 +897,7 @@ class ZeroDB extends DurableObject<ZeroEnv> {
       }
 
       // Get stats by category
-      const categoryStats = await db
+      const categoryStats = await this.db
         .select({
           category: subscriptions.category,
           count: sql<number>`count(*)`,
@@ -912,7 +908,7 @@ class ZeroDB extends DurableObject<ZeroEnv> {
         .groupBy(subscriptions.category);
 
       // Get overall stats
-      const [overallStats] = await db
+      const [overallStats] = await this.db
         .select({
           total: sql<number>`count(*)`,
           active: sql<number>`count(*) filter (where ${subscriptions.isActive} = true)`,
@@ -926,7 +922,7 @@ class ZeroDB extends DurableObject<ZeroEnv> {
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-      const [recentActivity] = await db
+      const [recentActivity] = await this.db
         .select({
           recentlyReceived: sql<number>`count(*) filter (where ${subscriptions.lastEmailReceivedAt} >= ${thirtyDaysAgo})`,
           recentlyUnsubscribed: sql<number>`count(*) filter (where ${subscriptions.userUnsubscribedAt} >= ${thirtyDaysAgo})`,
@@ -939,8 +935,8 @@ class ZeroDB extends DurableObject<ZeroEnv> {
         byCategory: categoryStats,
         recentActivity,
       };
-    } finally {
-      await conn.end();
+    } catch {
+      throw new Error('Failed to get subscription stats');
     }
   }
 }

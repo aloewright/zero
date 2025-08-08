@@ -70,13 +70,6 @@ export const subscriptionsRouter = router({
       }),
     )
     .mutation(async ({ input, ctx }) => {
-      if (!ctx.sessionUser) {
-        throw new TRPCError({
-          code: 'UNAUTHORIZED',
-          message: 'You must be logged in to unsubscribe',
-        });
-      }
-
       const db = await getZeroDB(ctx.sessionUser.id);
 
       try {
@@ -99,13 +92,6 @@ export const subscriptionsRouter = router({
       }),
     )
     .mutation(async ({ input, ctx }) => {
-      if (!ctx.sessionUser) {
-        throw new TRPCError({
-          code: 'UNAUTHORIZED',
-          message: 'You must be logged in to update preferences',
-        });
-      }
-
       const db = await getZeroDB(ctx.sessionUser.id);
 
       return await db.updateSubscriptionPreferences({
@@ -124,13 +110,6 @@ export const subscriptionsRouter = router({
       }),
     )
     .mutation(async ({ input, ctx }) => {
-      if (!ctx.sessionUser) {
-        throw new TRPCError({
-          code: 'UNAUTHORIZED',
-          message: 'You must be logged in to resubscribe',
-        });
-      }
-
       const db = await getZeroDB(ctx.sessionUser.id);
 
       return await db.resubscribeToEmail(input.subscriptionId, ctx.sessionUser.id);
@@ -143,13 +122,6 @@ export const subscriptionsRouter = router({
       }),
     )
     .query(async ({ input, ctx }) => {
-      if (!ctx.sessionUser) {
-        throw new TRPCError({
-          code: 'UNAUTHORIZED',
-          message: 'You must be logged in to view statistics',
-        });
-      }
-
       const db = await getZeroDB(ctx.sessionUser.id);
 
       return await db.getSubscriptionStats(ctx.sessionUser.id, input.connectionId);
@@ -163,13 +135,6 @@ export const subscriptionsRouter = router({
       }),
     )
     .mutation(async ({ input, ctx }) => {
-      if (!ctx.sessionUser) {
-        throw new TRPCError({
-          code: 'UNAUTHORIZED',
-          message: 'You must be logged in to bulk unsubscribe',
-        });
-      }
-
       const db = await getZeroDB(ctx.sessionUser.id);
 
       return await db.bulkUnsubscribeEmails(input.subscriptionIds, ctx.sessionUser.id);
