@@ -14,6 +14,7 @@ import {
   userSettings,
   writingStyleMatrix,
   emailTemplate,
+  authItem,
 } from './db/schema';
 import {
   toAttachmentFiles,
@@ -26,10 +27,10 @@ import { instrument, type ResolveConfigFn } from '@microlabs/otel-cf-workers';
 import { getZeroAgent, getZeroDB, verifyToken } from './lib/server-utils';
 import { SyncThreadsWorkflow } from './workflows/sync-threads-workflow';
 import { ShardRegistry, ZeroAgent, ZeroDriver } from './routes/agent';
+import { eq, and, desc, asc, inArray, SQL } from 'drizzle-orm';
 import { ThreadSyncWorker } from './routes/agent/sync-worker';
 import { oAuthDiscoveryMetadata } from 'better-auth/plugins';
 import { EProviders, type IEmailSendBatch } from './types';
-import { eq, and, desc, asc, inArray } from 'drizzle-orm';
 import { ThinkingMCP } from './lib/sequential-thinking';
 import { contextStorage } from 'hono/context-storage';
 import { defaultUserSettings } from './lib/schemas';
@@ -198,6 +199,24 @@ export class DbRpcDO extends RpcTarget {
 
   async updateEmailTemplate(templateId: string, data: Partial<typeof emailTemplate.$inferInsert>) {
     return await this.mainDo.updateEmailTemplate(this.userId, templateId, data);
+  }
+
+  async findAuthItems(
+    connectionId: string | undefined,
+    type: 'otp' | 'ml' | undefined,
+    limit: number,
+    includeExpired: boolean,
+    userId: string,
+  ): Promise<(typeof authItem.$inferSelect)[]> {
+    return await this.mainDo.findAuthItems({ userId, connectionId, type, limit, includeExpired });
+  }
+
+  async markAuthItemConsumed(userId: string, itemId: string) {
+    return await this.mainDo.markAuthItemConsumed(userId, itemId);
+  }
+
+  async deleteAuthItem(userId: string, itemId: string) {
+    return await this.mainDo.deleteAuthItem(userId, itemId);
   }
 }
 
@@ -560,6 +579,45 @@ class ZeroDB extends DurableObject<ZeroEnv> {
       .set({ ...data, updatedAt: new Date() })
       .where(and(eq(emailTemplate.id, templateId), eq(emailTemplate.userId, userId)))
       .returning();
+  }
+
+  async findAuthItems({
+    connectionId,
+    type,
+    limit,
+    includeExpired,
+    userId,
+  }: {
+    connectionId: string | undefined;
+    type: 'otp' | 'ml' | undefined;
+    limit: number;
+    includeExpired: boolean;
+    userId: string;
+  }): Promise<(typeof authItem.$inferSelect)[]> {
+    const conditions = [eq(authItem.userId, userId)];
+    if (connectionId) conditions.push(eq(authItem.connectionId, connectionId));
+    if (type) conditions.push(eq(authItem.type, type));
+    // if (!includeExpired) conditions.push(eq(authItem.type, 'otp'));
+
+    return await this.db
+      .select()
+      .from(authItem)
+      .where(and(...conditions))
+      .orderBy(desc(authItem.receivedAt))
+      .limit(limit);
+  }
+
+  async markAuthItemConsumed(userId: string, itemId: string) {
+    return await this.db
+      .update(authItem)
+      .set({ isConsumed: true })
+      .where(and(eq(authItem.id, itemId), eq(authItem.userId, userId)));
+  }
+
+  async deleteAuthItem(userId: string, itemId: string) {
+    return await this.db
+      .delete(authItem)
+      .where(and(eq(authItem.id, itemId), eq(authItem.userId, userId)));
   }
 }
 

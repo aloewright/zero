@@ -1,8 +1,8 @@
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Copy, ExternalLink, PencilCompose } from '../icons/icons';
 import { type OTPEmail } from '@/hooks/use-otp-emails';
 import { useTRPC } from '@/providers/query-provider';
 import { useMutation } from '@tanstack/react-query';
+import { Copy, ExternalLink } from '../icons/icons';
 import { Button } from '@/components/ui/button';
 import { BimiAvatar } from '../ui/bimi-avatar';
 import { cn, formatDate } from '@/lib/utils';
@@ -13,7 +13,7 @@ export function AuthItem({ item }: { item: OTPEmail }) {
   const trpc = useTRPC();
 
   const markConsumed = useMutation({
-    ...trpc.auth.markConsumed.mutationOptions(),
+    ...trpc.authItems.markConsumed.mutationOptions(),
   });
 
   const handleCopy = useCallback(
@@ -50,9 +50,7 @@ export function AuthItem({ item }: { item: OTPEmail }) {
     <div className={cn('select-none border-b md:my-1 md:border-none')}>
       <div
         className={cn(
-          'hover:bg-offsetLight dark:hover:bg-primary/5 group relative mx-1 flex cursor-pointer flex-col items-start rounded-lg py-2 text-left text-sm transition-all hover:opacity-100',
-          'relative',
-          'group',
+          'hover:bg-offsetLight dark:hover:bg-primary/5 group relative mx-1 flex flex-col items-start rounded-lg py-2 text-left text-sm transition-all hover:opacity-100',
         )}
       >
         <div className={`relative flex w-full items-center justify-between gap-4 px-4`}>
@@ -70,40 +68,12 @@ export function AuthItem({ item }: { item: OTPEmail }) {
                       'text-md flex items-baseline gap-1 group-hover:opacity-100',
                     )}
                   >
-                    {item.type === 'otp' ? (
-                      <span
-                        className={cn(
-                          'overflow-hidden truncate text-sm md:max-w-[15ch] xl:max-w-[25ch]',
-                        )}
-                      >
-                        {item.code}
-                      </span>
-                    ) : (
-                      <div className="flex items-center gap-1">
-                        <span className={cn('line-clamp-1 max-w-2xl overflow-hidden text-sm')}>
-                          {item.url?.split('/')[0]}
-                        </span>
-                      </div>
-                    )}
+                    <span className={cn('line-clamp-1 max-w-2xl overflow-hidden text-sm')}>
+                      {item.type === 'otp'
+                        ? `Your one time passcode for ${item.service} - ${item.code}`
+                        : `Your magic link for ${item.service}`}
+                    </span>
                   </span>
-                  {item.type === 'ml' ? (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="rounded-md text-xs opacity-70">[{item.service}]</span>
-                      </TooltipTrigger>
-                      <TooltipContent className="p-1 text-xs">{item.service}</TooltipContent>
-                    </Tooltip>
-                  ) : null}
-                  {item.type === 'otp' ? (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="inline-flex items-center">
-                          <PencilCompose className="h-3 w-3 fill-blue-500 dark:fill-blue-400" />
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent className="p-1 text-xs">Draft</TooltipContent>
-                    </Tooltip>
-                  ) : null}
                 </div>
                 <div className="flex items-center gap-1">
                   {item.type === 'otp' && item.code ? (

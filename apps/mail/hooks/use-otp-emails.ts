@@ -29,7 +29,7 @@ export function useOTPEmails(connectionId: string) {
   console.log(connectionId);
 
   const { data, isLoading, error, refetch } = useQuery(
-    trpc.auth.list.queryOptions(
+    trpc.authItems.list.queryOptions(
       {
         connectionId,
         // includeExpired: false,
@@ -43,14 +43,14 @@ export function useOTPEmails(connectionId: string) {
   );
 
   const markAsCopiedMutation = useMutation({
-    ...trpc.auth.markConsumed.mutationOptions(),
+    ...trpc.authItems.markConsumed.mutationOptions(),
     onSuccess: () => {
       refetch();
     },
   });
 
   const deleteMutation = useMutation({
-    ...trpc.auth.delete.mutationOptions(),
+    ...trpc.authItems.delete.mutationOptions(),
     onSuccess: () => {
       refetch();
       toast.success('OTP removed', {
@@ -65,7 +65,7 @@ export function useOTPEmails(connectionId: string) {
   });
 
   const deleteExpiredMutation = useMutation({
-    ...trpc.auth.delete.mutationOptions(),
+    ...trpc.authItems.delete.mutationOptions(),
     onSuccess: () => {
       refetch();
       toast.success('Expired OTPs cleared', {

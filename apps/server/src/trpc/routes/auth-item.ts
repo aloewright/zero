@@ -1,8 +1,6 @@
+import { getZeroDB } from '../../lib/server-utils';
 import { privateProcedure, router } from '../trpc';
-import { and, desc, eq } from 'drizzle-orm';
-import { authItem } from '../../db/schema';
-import { createDb } from '../../db';
-import { env } from '../../env';
+import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
 
 export const authItemRouter = router({
@@ -16,52 +14,42 @@ export const authItemRouter = router({
       }),
     )
     .query(async ({ ctx, input }) => {
-      const { db, conn } = createDb(env.HYPERDRIVE.connectionString);
       const { connectionId, type, limit, includeExpired } = input;
-      const conditions = [eq(authItem.userId, ctx.sessionUser.id)];
-      if (connectionId) conditions.push(eq(authItem.connectionId, connectionId));
-      if (type) conditions.push(eq(authItem.type, type));
-      // if (!includeExpired) conditions.push(eq(authItem.type, 'otp'));
+      const db = await getZeroDB(ctx.sessionUser.id);
 
       try {
-        const items = await db
-          .select()
-          .from(authItem)
-          .where(and(...conditions))
-          .orderBy(desc(authItem.receivedAt))
-          .limit(limit);
+        const items = await db.findAuthItems(
+          connectionId,
+          type,
+          limit,
+          includeExpired,
+          ctx.sessionUser.id,
+        );
         return { items };
-      } finally {
-        await conn.end();
+      } catch {
+        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
       }
     }),
 
   markConsumed: privateProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const { db, conn } = createDb(env.HYPERDRIVE.connectionString);
+      const db = await getZeroDB(ctx.sessionUser.id);
       try {
-        const [updated] = await db
-          .update(authItem)
-          .set({ isConsumed: true, updatedAt: new Date() })
-          .where(and(eq(authItem.id, input.id), eq(authItem.userId, ctx.sessionUser.id)))
-          .returning();
-        return { success: !!updated };
-      } finally {
-        await conn.end();
+        const success = await db.markAuthItemConsumed(ctx.sessionUser.id, input.id);
+        return { success };
+      } catch {
+        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
       }
     }),
 
   delete: privateProcedure.input(z.object({ id: z.string() })).mutation(async ({ ctx, input }) => {
-    const { db, conn } = createDb(env.HYPERDRIVE.connectionString);
+    const db = await getZeroDB(ctx.sessionUser.id);
     try {
-      const [deleted] = await db
-        .delete(authItem)
-        .where(and(eq(authItem.id, input.id), eq(authItem.userId, ctx.sessionUser.id)))
-        .returning();
-      return { success: !!deleted };
-    } finally {
-      await conn.end();
+      const success = await db.deleteAuthItem(ctx.sessionUser.id, input.id);
+      return { success };
+    } catch {
+      throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
     }
   }),
 });

@@ -13,10 +13,14 @@ export const parseHeaders = (token: string) => {
  */
 export const c = {
   env,
+  // TODO: probably fix later
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   json: (data: any, status: number) => ({
     data,
     status,
   }),
+  // TODO: probably fix later
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   text: (data: any, status: number) => ({
     data,
     status,

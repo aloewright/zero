@@ -30,7 +30,7 @@ export const appRouter = router({
   labels: labelsRouter,
   mail: mailRouter,
   notes: notesRouter,
-  auth: authItemRouter,
+  authItems: authItemRouter,
   shortcut: shortcutRouter,
   settings: settingsRouter,
   user: userRouter,
