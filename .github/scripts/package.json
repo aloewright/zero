@@ -1,0 +1,20 @@
+{
+  "name": "ampcode-review-scripts",
+  "version": "1.0.0",
+  "description": "TypeScript scripts for Ampcode PR review workflow",
+  "main": "dist/parse-review-comments.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/parse-review-comments.js",
+    "dev": "ts-node parse-review-comments.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {},
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
