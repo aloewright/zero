@@ -893,32 +893,7 @@ export class ZeroDriver extends DurableObject<ZeroEnv> {
     return `${this.name}/${threadId}.json`;
   }
 
-  async *streamThreads(folder: string) {
-    let pageToken: string | null = null;
-    let hasMore = true;
-
-    while (hasMore) {
-      // Rate limiting delay
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      const result = await this.rawListThreads({
-        folder,
-        maxResults: maxCount, // Smaller batches for streaming
-        pageToken: pageToken || undefined,
-      });
-
-      // Stream each thread individually
-      for (const thread of result.threads) {
-        yield thread;
-      }
-
-      pageToken = result.nextPageToken;
-      hasMore = pageToken !== null;
-    }
-  }
-
-
-
+ 
   async deleteThread(id: string) {
     await this.db.delete(threads).where(eq(threads.threadId, id));
     this.invalidateRecipientCache();
