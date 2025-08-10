@@ -817,6 +817,88 @@ const app = new Hono<HonoContext>()
     } finally {
       span.end();
     }
+  })
+  .post('/email/webhook', async (c) => {
+    const tracer = initTracing();
+    const span = tracer.startSpan('email_webhook', {
+      attributes: {
+        'webhook.type': 'incoming_email',
+        'http.method': c.req.method,
+        'http.url': c.req.url,
+      },
+    });
+
+    try {
+      const body = await c.req.json<{
+        to: string;
+        from: string;
+        subject: string;
+        html: string;
+        text: string;
+        messageId?: string;
+        inReplyTo?: string;
+        references?: string;
+      }>();
+
+      if (!body.to.includes('@0.email')) {
+        span.setAttributes({ 'email.domain_filtered': true });
+        return c.json({ message: 'Domain not handled' }, { status: 200 });
+      }
+
+      const { db, conn } = createDb(env.HYPERDRIVE.connectionString);
+      const foundConnection = await db.query.connection.findFirst({
+        where: (fields, { eq }) => eq(fields.email, body.to),
+      });
+      await conn.end();
+
+      if (!foundConnection) {
+        span.setAttributes({ 'connection.found': false });
+        return c.json({ message: 'Connection not found' }, { status: 404 });
+      }
+
+      const { stub: agent } = await getZeroAgent(foundConnection.id);
+      
+      const parsedMessage = {
+        id: body.messageId || `webhook_${Date.now()}`,
+        connectionId: foundConnection.id,
+        title: body.subject,
+        subject: body.subject,
+        tags: [],
+        sender: { email: body.from },
+        to: [{ email: body.to }],
+        cc: null,
+        bcc: null,
+        tls: true,
+        receivedOn: new Date().toISOString(),
+        unread: true,
+        body: body.html || body.text,
+        processedHtml: body.html || '',
+        blobUrl: '',
+        decodedBody: body.text,
+        references: body.references,
+        inReplyTo: body.inReplyTo,
+        messageId: body.messageId,
+        threadId: body.inReplyTo,
+        attachments: [],
+        isDraft: false,
+      };
+
+      await agent.storeIncomingEmail(parsedMessage);
+
+      span.setAttributes({ 
+        'email.processed': true,
+        'connection.id': foundConnection.id 
+      });
+
+      return c.json({ message: 'Email processed successfully' }, { status: 200 });
+    } catch (error) {
+      span.recordException(error as Error);
+      span.setStatus({ code: 2, message: (error as Error).message });
+      console.error('Error processing incoming email:', error);
+      return c.json({ error: 'Internal server error' }, { status: 500 });
+    } finally {
+      span.end();
+    }
   });
 const handler = {
   async fetch(request: Request, env: ZeroEnv, ctx: ExecutionContext): Promise<Response> {

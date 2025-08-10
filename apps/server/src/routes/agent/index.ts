@@ -1847,6 +1847,49 @@ export class ZeroAgent extends AIChatAgent<ZeroEnv> {
     }
   }
 
+  async storeIncomingEmail(parsedMessage: ParsedMessage): Promise<void> {
+    try {
+      const threadId = parsedMessage.threadId || parsedMessage.id;
+      
+      const existingThread = await this.env.THREADS_BUCKET.get(this.getThreadKey(threadId));
+      
+      let messages: ParsedMessage[] = existingThread
+        ? (JSON.parse(await existingThread.text()) as IGetThreadResponse).messages
+        : [];
+      
+      messages.push(parsedMessage);
+      
+      const threadResponse: IGetThreadResponse = {
+        messages,
+        latest: parsedMessage,
+        hasUnread: true,
+        totalReplies: messages.length,
+        labels: [{ id: 'INBOX', name: 'INBOX' }, { id: 'UNREAD', name: 'UNREAD' }],
+      };
+      
+      await this.env.THREADS_BUCKET.put(
+        this.getThreadKey(threadId),
+        JSON.stringify(threadResponse),
+        {
+          customMetadata: {
+            connectionId: parsedMessage.connectionId,
+            threadId: threadId,
+            lastUpdated: new Date().toISOString(),
+          },
+        }
+      );
+      
+      console.log(`[ZeroAgent] Stored incoming email for thread ${threadId}`);
+    } catch (error) {
+      console.error('[ZeroAgent] Failed to store incoming email:', error);
+      throw error;
+    }
+  }
+
+  private getThreadKey(threadId: string) {
+    return `${this.name}/${threadId}.json`;
+  }
+
   async onChatMessageWithContext(
     onFinish: StreamTextOnFinishCallback<{}>,
     currentThreadId: string,
