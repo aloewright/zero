@@ -4,6 +4,7 @@ import type { MailManager, ManagerConfig, ParsedDraft, IGetThreadResponse } from
 import type { CreateDraftData } from '../schemas';
 import { resend } from '../services';
 import { v4 as uuidv4 } from 'uuid';
+import { htmlToText } from '../../thread-workflow-utils/workflow-utils';
 
 export class ResendMailManager implements MailManager {
   private resendClient;
@@ -27,7 +28,7 @@ export class ResendMailManager implements MailManager {
         bcc: data.bcc?.map(recipient => recipient.email),
         subject: data.subject,
         html: processedMessage,
-        text: data.message.replace(/<[^>]*>/g, ''),
+        text: await htmlToText(data.message),
         headers: {
           ...data.headers,
           ...(data.threadId && {
