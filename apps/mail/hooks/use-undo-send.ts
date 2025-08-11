@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
-
+import { useQueryState } from 'nuqs';
 import { useTRPC } from '@/providers/query-provider';
 import { isSendResult } from '@/lib/email-utils';
 import type { UserSettings } from '@zero/server/schemas';
@@ -72,6 +72,12 @@ export const useUndoSend = () => {
   const trpc = useTRPC();
   const { mutateAsync: unsendEmail } = useMutation(trpc.mail.unsend.mutationOptions());
 
+  const [, setIsComposeOpen] = useQueryState('isComposeOpen');
+  const [, setThreadId] = useQueryState('threadId');
+  const [, setActiveReplyId] = useQueryState('activeReplyId');
+  const [, setMode] = useQueryState('mode');
+  const [, setDraftId] = useQueryState('draftId');
+
   const handleUndoSend = (
     result: unknown,
     settings: { settings: UserSettings } | undefined,
@@ -113,24 +119,18 @@ export const useUndoSend = () => {
                   }
                 }
                 
-                const url = new URL(window.location.href);
                 if (context.kind === 'reply') {
-                  url.searchParams.delete('isComposeOpen');
-                  url.searchParams.set('threadId', context.threadId);
-                  url.searchParams.set('activeReplyId', context.activeReplyId);
-                  url.searchParams.set('mode', context.mode);
-                  if (context.draftId) {
-                    url.searchParams.set('draftId', context.draftId);
-                  } else {
-                    url.searchParams.delete('draftId');
-                  }
+                  setIsComposeOpen(null);
+                  setThreadId(context.threadId);
+                  setActiveReplyId(context.activeReplyId);
+                  setMode(context.mode);
+                  setDraftId(context.draftId ?? null);
                 } else {
-                  url.searchParams.delete('activeReplyId');
-                  url.searchParams.delete('mode');
-                  url.searchParams.delete('draftId');
-                  url.searchParams.set('isComposeOpen', 'true');
+                  setActiveReplyId(null);
+                  setMode(null);
+                  setDraftId(null);
+                  setIsComposeOpen('true');
                 }
-                window.history.replaceState({}, '', url.toString());
                 
                 toast.info('Send cancelled');
               } catch {
