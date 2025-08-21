@@ -59,6 +59,19 @@ export class OutlookMailManager implements MailManager {
     });
   }
 
+  public listHistory<T>(historyId: string): Promise<{ history: T[]; historyId: string }> {
+    return this.withErrorHandler(
+      'listHistory',
+      async () => {
+        // added this as Microsoft Graph API doesn't have a direct equivalent to Gmail's history API
+        // this is a placeholder implementation that returns empty results
+        console.warn('[listHistory] listHistory is not implemented for Microsoft Graph API');
+        return { history: [] as T[], historyId };
+      },
+      { historyId },
+    );
+  }
+
   private async refreshAccessToken(): Promise<{ accessToken: string; refreshToken?: string }> {
     const response = await fetch('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
       method: 'POST',
@@ -118,12 +131,12 @@ export class OutlookMailManager implements MailManager {
       { messageId, attachmentId },
     );
   }
-  public getMessageAttachments(id: string) {
+  public getMessageAttachments(messageId: string) {
     return this.withErrorHandler(
       'getMessageAttachments',
       async () => {
         const message: Message = await this.graphClient
-          .api(`/me/messages/${id}`)
+          .api(`/me/messages/${messageId}`)
           .select('id,attachments')
           .get();
 
@@ -158,7 +171,7 @@ export class OutlookMailManager implements MailManager {
 
         return attachments.filter((a): a is NonNullable<typeof a> => a !== null);
       },
-      { id },
+      { messageId },
     );
   }
   public getEmailAliases() {
@@ -173,22 +186,22 @@ export class OutlookMailManager implements MailManager {
       return aliases;
     });
   }
-  public markAsRead(messageIds: string[]) {
+  public markAsRead(threadIds: string[]) {
     return this.withErrorHandler(
       'markAsRead',
       async () => {
-        await this.modifyMessageReadStatus(messageIds, true);
+        await this.modifyMessageReadStatus(threadIds, true);
       },
-      { messageIds },
+      { threadIds },
     );
   }
-  public markAsUnread(messageIds: string[]) {
+  public markAsUnread(threadIds: string[]) {
     return this.withErrorHandler(
       'markAsUnread',
       async () => {
-        await this.modifyMessageReadStatus(messageIds, false);
+        await this.modifyMessageReadStatus(threadIds, false);
       },
-      { messageIds },
+      { threadIds },
     );
   }
   private async modifyMessageReadStatus(messageIds: string[], isRead: boolean) {
@@ -515,7 +528,7 @@ export class OutlookMailManager implements MailManager {
           saveToSentItems: true,
         });
 
-        return res;
+        return res || {};
       },
       { data, email: this.config.auth?.email },
     );
@@ -543,8 +556,12 @@ export class OutlookMailManager implements MailManager {
   }
   public modifyLabels(
     messageIds: string[],
-    options: { addLabels: string[]; removeLabels: string[] },
+    addOrOptions: { addLabels: string[]; removeLabels: string[] } | string[],
+    maybeRemove?: string[],
   ) {
+    const options = Array.isArray(addOrOptions)
+      ? { addLabels: addOrOptions as string[], removeLabels: maybeRemove ?? [] }
+      : addOrOptions;
     return this.withErrorHandler(
       'modifyLabels',
       async () => {
@@ -554,7 +571,7 @@ export class OutlookMailManager implements MailManager {
           options.removeLabels,
         );
       },
-      { messageIds, options },
+      { messageIds, addOrOptions, maybeRemove },
     );
   }
   private async modifyMessageLabelsOrFolders(
@@ -1368,8 +1385,5 @@ export class OutlookMailManager implements MailManager {
       if (isFatal) void deleteActiveConnection();
       throw new StandardizedError(error, operation, context);
     }
-  }
-  listHistory<T>(historyId: string): Promise<{ history: T[]; historyId: string }> {
-    return Promise.resolve({ history: [], historyId });
   }
 }
