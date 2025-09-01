@@ -9,8 +9,8 @@ import {
 import { useArcadeConnections } from '@/hooks/use-arcade-connections';
 import { Gmail, GitHub, Slack, Linear, Stripe } from '../icons/icons';
 import { Loader2, CheckCircle2, Sparkles } from 'lucide-react';
-// import { useTRPC } from '@/providers/query-provider';
-// import { useMutation } from '@tanstack/react-query';
+import { useTRPC } from '@/providers/query-provider';
+import { useMutation } from '@tanstack/react-query';
 import { Button } from '../ui/button';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -35,10 +35,10 @@ export const AddArcadeConnectionDialog = ({
   const [isOpen, setIsOpen] = useState(false);
   const [connectingToolkit, setConnectingToolkit] = useState<string | null>(null);
   const { toolkits, connections, isLoading, authorizeToolkit } = useArcadeConnections();
-  // const trpc = useTRPC();
-  // const { mutateAsync: createConnection } = useMutation(
-  //   trpc.arcadeConnections.createConnection.mutationOptions(),
-  // );
+  const trpc = useTRPC();
+  const { mutateAsync: createConnection } = useMutation(
+    trpc.arcadeConnections.createConnection.mutationOptions(),
+  );
 
   const handleConnect = async (toolkit: string) => {
     setConnectingToolkit(toolkit);
@@ -46,42 +46,40 @@ export const AddArcadeConnectionDialog = ({
       const authResult = await authorizeToolkit(toolkit);
       if (authResult?.authUrl && authResult?.authId) {
         // Open the authorization URL in a new window
-
-        console.log('authResult', authResult.authUrl);
-
         // window.location.href = authResult.authUrl;
+        const authWindow = window.open(authResult.authUrl, '_blank', 'width=600,height=600');
 
         // Poll to check if the window is closed and authorization is complete
-        // const checkInterval = setInterval(async () => {
-        //   if (authWindow?.closed) {
-        //     clearInterval(checkInterval);
+        const checkInterval = setInterval(async () => {
+          if (authWindow?.closed) {
+            clearInterval(checkInterval);
 
-        //     // Try to create the connection
-        //     try {
-        //       await createConnection({
-        //         toolkit,
-        //         authId: authResult.authId,
-        //       });
+            // Try to create the connection
+            try {
+              await createConnection({
+                toolkit,
+                authId: authResult.authId,
+              });
 
-        //       toast.success(`Successfully connected ${toolkit}`);
-        //       setConnectingToolkit(null);
-        //       onSuccess?.();
-        //     } catch {
-        //       // Authorization might not be complete yet
-        //       console.log('Authorization not complete or failed');
-        //       setConnectingToolkit(null);
-        //     }
-        //   }
-        // }, 1000);
+              toast.success(`Successfully connected ${toolkit}`);
+              setConnectingToolkit(null);
+              // onSuccess?.();
+            } catch {
+              // Authorization might not be complete yet
+              console.log('Authorization not complete or failed');
+              setConnectingToolkit(null);
+            }
+          }
+        }, 1000);
 
-        // // Also set a timeout to stop checking after 5 minutes
-        // setTimeout(
-        //   () => {
-        //     clearInterval(checkInterval);
-        //     setConnectingToolkit(null);
-        //   },
-        //   5 * 60 * 1000,
-        // );
+        // Also set a timeout to stop checking after 5 minutes
+        setTimeout(
+          () => {
+            clearInterval(checkInterval);
+            setConnectingToolkit(null);
+          },
+          5 * 60 * 1000,
+        );
       }
     } catch (error) {
       console.error('Failed to connect toolkit:', error);

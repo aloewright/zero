@@ -68,8 +68,8 @@ export const arcadeRouter = new Hono<HonoContext>()
 
         console.log('[Arcade Verify User] waiting for completion');
 
-        // const authResponse = await arcade.auth.waitForCompletion(result.auth_id);
-        const authResponse = await arcade.auth.status({ id: result.auth_id });
+        const authResponse = await arcade.auth.waitForCompletion(result.auth_id);
+        // const authResponse = await arcade.auth.status({ id: result.auth_id });
 
         console.log('[Arcade Verify User] authResponse', authResponse);
 

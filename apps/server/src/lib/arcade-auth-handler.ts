@@ -30,8 +30,6 @@ export class ArcadeAuthHandler {
         user_id: userId,
       });
 
-      console.log('authResponse', authResponse);
-
       const state: AuthorizationState = {
         toolName,
         userId,

@@ -52,15 +52,12 @@ export default function ConnectionsPage() {
   const [authId] = useQueryState('auth_id');
   const [error] = useQueryState('error');
 
-  // Handle Arcade authentication callback
   useEffect(() => {
     if (arcadeAuthSuccess === 'true' && toolkit && authId) {
-      // Create the connection after successful authentication
       createArcadeConnection({ toolkit, authId })
         .then(() => {
           toast.success(`Successfully connected ${toolkit}`);
           void refetchArcadeConnections();
-          // Clear URL parameters
           window.history.replaceState({}, document.title, window.location.pathname);
         })
         .catch((err) => {
@@ -68,7 +65,6 @@ export default function ConnectionsPage() {
           toast.error(`Failed to connect ${toolkit}`);
         });
     } else if (error) {
-      // Handle authentication errors
       let errorMessage = 'Authentication failed';
       if (error === 'arcade_auth_failed') {
         errorMessage = 'Arcade authorization failed';
@@ -80,7 +76,6 @@ export default function ConnectionsPage() {
         errorMessage = 'An error occurred during authentication';
       }
       toast.error(errorMessage);
-      // Clear URL parameters
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, [arcadeAuthSuccess, toolkit, authId, error, createArcadeConnection, refetchArcadeConnections]);
