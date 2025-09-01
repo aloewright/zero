@@ -3,9 +3,11 @@ import { cookiePreferencesRouter } from './routes/cookies';
 import { connectionsRouter } from './routes/connections';
 import { categoriesRouter } from './routes/categories';
 import { templatesRouter } from './routes/templates';
+import { arcadeConnections } from './routes/arcade';
 import { shortcutRouter } from './routes/shortcut';
 import { settingsRouter } from './routes/settings';
 import { getContext } from 'hono/context-storage';
+import { loggingRouter } from './routes/logging';
 import { draftsRouter } from './routes/drafts';
 import { labelsRouter } from './routes/label';
 import { notesRouter } from './routes/notes';
@@ -17,10 +19,10 @@ import { bimiRouter } from './routes/bimi';
 import type { HonoContext } from '../ctx';
 import { aiRouter } from './routes/ai';
 import { router } from './trpc';
-import { loggingRouter } from './routes/logging';
 
 export const appRouter = router({
   ai: aiRouter,
+  arcadeConnections: arcadeConnections,
   bimi: bimiRouter,
   brain: brainRouter,
   categories: categoriesRouter,
