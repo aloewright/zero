@@ -29,7 +29,7 @@
       "name": "zero-production",
       "routes": ["alex.chat/*"],
       "vars": {
-        "VITE_PUBLIC_BACKEND_URL": "https://zero-inbound-mail.lazee.workers.dev",
+        "VITE_PUBLIC_BACKEND_URL": "https://zero-server-production.lazee.workers.dev",
         "VITE_PUBLIC_APP_URL": "https://alex.chat",
       },
     },
