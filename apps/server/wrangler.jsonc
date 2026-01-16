@@ -145,7 +145,6 @@
           "tag": "v9",
           "new_sqlite_classes": ["ShardRegistry"],
         },
-
       ],
 
       "observability": {
@@ -287,7 +286,6 @@
             "name": "SHARD_REGISTRY",
             "class_name": "ShardRegistry",
           },
-
         ],
       },
       "workflows": [
@@ -376,7 +374,6 @@
           "tag": "v10",
           "new_sqlite_classes": ["ShardRegistry"],
         },
-
       ],
       "observability": {
         "enabled": true,
@@ -480,6 +477,7 @@
       "observability": {
         "enabled": true,
       },
+      "logpush": true,
       "hyperdrive": [
         {
           "binding": "HYPERDRIVE",
@@ -521,7 +519,6 @@
             "name": "SHARD_REGISTRY",
             "class_name": "ShardRegistry",
           },
-
         ],
       },
       "workflows": [
@@ -604,7 +601,6 @@
           "tag": "v10",
           "new_sqlite_classes": ["ShardRegistry"],
         },
-
       ],
       "vars": {
         "NODE_ENV": "production",
