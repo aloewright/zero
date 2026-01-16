@@ -361,6 +361,8 @@ const createAuthConfig = () => {
       'https://staging.0.email',
       'https://0.email',
       'http://localhost:3000',
+      'https://alex.chat',
+      'https://zero-server-production.lazee.workers.dev',
     ],
     session: {
       cookieCache: {
