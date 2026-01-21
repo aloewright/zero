@@ -613,7 +613,7 @@
     "createEmail": {
       "invalidEmail": "無効なメールアドレスです",
       "body": "本文",
-      "example": "zero@0.email",
+      "example": "zero@alex.chat",
       "attachments": "添付ファイル",
       "addMore": "さらに追加",
       "dropFilesToAttach": "添付するファイルをドロップ",

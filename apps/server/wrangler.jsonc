@@ -234,7 +234,7 @@
         },
       ],
       "triggers": {
-        "crons": ["0 0 * * *", "0 * * * *"],
+        "crons": ["0 0 * * *"],
       },
       "ai": {
         "binding": "AI",
@@ -453,12 +453,12 @@
         },
       ],
       "triggers": {
-        "crons": ["0 0 * * *", "0 * * * *"],
+        "crons": ["0 0 * * *", "0 * * *"],
       },
       "routes": [
         {
-          "pattern": "api.alex.chat",
-          "custom_domain": true,
+          "pattern": "api.alex.chat/*",
+          "zone_name": "alex.chat",
         },
       ],
       "r2_buckets": [
@@ -571,10 +571,6 @@
         {
           "tag": "v3",
           "new_classes": ["ZeroDB"],
-        },
-        {
-          "tag": "v4",
-          "new_sqlite_classes": ["ZeroAgent"],
         },
         {
           "tag": "v5",

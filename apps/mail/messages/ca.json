@@ -613,7 +613,7 @@
     "createEmail": {
       "invalidEmail": "Adreça de correu electrònic no vàlida",
       "body": "Cos",
-      "example": "zero@0.email",
+      "example": "zero@alex.chat",
       "attachments": "Adjunts",
       "addMore": "Afegir més",
       "dropFilesToAttach": "Arrossega arxius per adjuntar",

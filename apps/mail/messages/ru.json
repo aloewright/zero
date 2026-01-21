@@ -613,7 +613,7 @@
     "createEmail": {
       "invalidEmail": "Неверный адрес электронной почты",
       "body": "Текст письма",
-      "example": "zero@0.email",
+      "example": "zero@alex.chat",
       "attachments": "Приложения",
       "addMore": "Добавить ещё",
       "dropFilesToAttach": "Поместите файлы, чтобы прикрепить",

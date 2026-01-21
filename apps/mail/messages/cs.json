@@ -613,7 +613,7 @@
     "createEmail": {
       "invalidEmail": "Neplatná e-mailová adresa",
       "body": "Tělo",
-      "example": "nula@0.email",
+      "example": "nula@alex.chat",
       "attachments": "Přílohy",
       "addMore": "Přidat další",
       "dropFilesToAttach": "Přetáhněte sem soubory",

@@ -613,7 +613,7 @@
     "createEmail": {
       "invalidEmail": "Érvénytelen e-mail cím",
       "body": "Törzs",
-      "example": "zero@0.email",
+      "example": "zero@alex.chat",
       "attachments": "Mellékletek ({count})",
       "addMore": "További hozzáadása",
       "dropFilesToAttach": "Húzza ide a fájlokat a csatoláshoz",

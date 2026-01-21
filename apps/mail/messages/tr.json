@@ -613,7 +613,7 @@
     "createEmail": {
       "invalidEmail": "Geçersiz e-posta adresi",
       "body": "İçerik",
-      "example": "zero@0.email",
+      "example": "zero@alex.chat",
       "attachments": "Ekler",
       "addMore": "Daha fazla ekle",
       "dropFilesToAttach": "Eklemek için dosyaları bırakın",

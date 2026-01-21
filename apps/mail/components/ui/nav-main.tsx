@@ -168,13 +168,13 @@ export function NavMain({ items }: NavMainProps) {
         await refetch();
         return result;
       });
-      
+
       toast.promise(promise, {
         loading: 'Creating label...',
         success: 'Label created successfully',
         error: 'Failed to create label',
       });
-      
+
       await promise;
     } catch (error) {
       console.error('Failed to create label:', error);
@@ -196,9 +196,9 @@ export function NavMain({ items }: NavMainProps) {
             </SidebarMenuButton>
             <NavItem
               key={'feedback'}
-              isActive={isUrlActive('https://feedback.0.email')}
-              href={'https://feedback.0.email'}
-              url={'https://feedback.0.email'}
+              isActive={isUrlActive('https://feedback.alex.chat')}
+              href={'https://feedback.alex.chat'}
+              url={'https://feedback.alex.chat'}
               icon={MessageSquare}
               target={'_blank'}
               title={m['navigation.sidebar.feedback']()}
