@@ -45,7 +45,7 @@ import { autumnApi } from './routes/autumn';
 import { initTracing } from './lib/tracing';
 import { env, type ZeroEnv } from './env';
 import type { HonoContext } from './ctx';
-import { createDb, type DB } from './db';
+import { createDb, getDatabaseUrl, type DB } from './db';
 import { createAuth } from './lib/auth';
 import { aiRouter } from './routes/ai';
 import { appRouter } from './trpc';
@@ -203,7 +203,7 @@ export class DbRpcDO extends RpcTarget {
 }
 
 class ZeroDB extends DurableObject<ZeroEnv> {
-  db: DB = createDb(this.env.HYPERDRIVE.connectionString).db;
+  db: DB = createDb(getDatabaseUrl(this.env)).db;
 
   async setMetaData(userId: string) {
     return new DbRpcDO(this, userId);
@@ -1157,7 +1157,7 @@ export default class Entry extends WorkerEntrypoint<ZeroEnv> {
 
   private async processExpiredSubscriptions() {
     console.log('[SCHEDULED] Checking for expired subscriptions...');
-    const { db, conn } = createDb(this.env.HYPERDRIVE.connectionString);
+    const { db, conn } = createDb(getDatabaseUrl(this.env));
     const allAccounts = await db.query.connection.findMany({
       where: (fields, { isNotNull, and }) =>
         and(isNotNull(fields.accessToken), isNotNull(fields.refreshToken)),

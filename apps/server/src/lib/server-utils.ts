@@ -7,7 +7,7 @@ import type { HonoContext } from '../ctx';
 import { createClient } from 'dormroom';
 import { createDriver } from './driver';
 import { eq } from 'drizzle-orm';
-import { createDb } from '../db';
+import { createDb, getDatabaseUrl } from '../db';
 import { Effect } from 'effect';
 import { env } from '../env';
 
@@ -607,7 +607,7 @@ export const verifyToken = async (token: string) => {
 
 
 export const resetConnection = async (connectionId: string) => {
-  const { db, conn } = createDb(env.HYPERDRIVE.connectionString);
+  const { db, conn } = createDb(getDatabaseUrl(env));
   await db
     .update(connection)
     .set({

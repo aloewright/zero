@@ -16,7 +16,7 @@ export type ZeroEnv = {
   THREAD_SYNC_WORKER: DurableObjectNamespace<ThreadSyncWorker>;
   SYNC_THREADS_WORKFLOW: Workflow;
   SYNC_THREADS_COORDINATOR_WORKFLOW: Workflow;
-  HYPERDRIVE: { connectionString: string };
+  HYPERDRIVE?: { connectionString: string };
   pending_emails_status: KVNamespace;
   pending_emails_payload: KVNamespace;
   scheduled_emails: KVNamespace;

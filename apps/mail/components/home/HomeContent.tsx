@@ -65,6 +65,20 @@ export default function HomeContent() {
     setTheme('dark');
   }, [setTheme]);
 
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!session) {
+      navigate('/login');
+    }
+  }, [session, navigate]);
+
+  // Show loading while checking auth
+  if (!session) {
+    return <div className="flex h-screen w-screen items-center justify-center bg-black">
+      <div className="animate-pulse text-white">Loading...</div>
+    </div>;
+  }
+
   return (
     <main className="relative flex h-full flex-1 flex-col overflow-x-hidden bg-[#0F0F0F] px-2">
       <PixelatedBackground

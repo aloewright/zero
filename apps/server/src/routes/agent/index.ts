@@ -69,7 +69,7 @@ import * as schema from './db/schema';
 import { threads } from './db/schema';
 import { Effect, pipe } from 'effect';
 import { groq } from '@ai-sdk/groq';
-import { createDb } from '../../db';
+import { createDb, getDatabaseUrl } from '../../db';
 import type { Message } from 'ai';
 import { create } from './db';
 
@@ -702,7 +702,7 @@ export class ZeroDriver extends DurableObject<ZeroEnv> {
   public async setupAuth() {
     if (this.name === 'general') return;
     if (!this.driver) {
-      const { db, conn } = createDb(this.env.HYPERDRIVE.connectionString);
+      const { db, conn } = createDb(getDatabaseUrl(this.env));
       const _connection = await db.query.connection.findFirst({
         where: eq(connection.id, this.name),
       });

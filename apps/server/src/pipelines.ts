@@ -27,7 +27,7 @@ import type { ZeroEnv } from './env';
 import { initTracing } from './lib/tracing';
 import { EPrompts } from './types';
 import { eq } from 'drizzle-orm';
-import { createDb } from './db';
+import { createDb, getDatabaseUrl } from './db';
 
 // Configure pretty logger to stderr
 export const loggerLayer = Logger.add(Logger.prettyLogger({ stderr: true }));
@@ -261,7 +261,7 @@ export class WorkflowRunner extends DurableObject<ZeroEnv> {
         historyProcessingKey,
       );
 
-      const { db, conn } = createDb(this.env.HYPERDRIVE.connectionString);
+      const { db, conn } = createDb(getDatabaseUrl(this.env));
 
       const foundConnection = yield* Effect.tryPromise({
         try: async () => {
@@ -571,7 +571,7 @@ export class WorkflowRunner extends DurableObject<ZeroEnv> {
 
       if (providerId === EProviders.google) {
         yield* Console.log('[THREAD_WORKFLOW] Processing Google provider workflow');
-        const { db, conn } = createDb(this.env.HYPERDRIVE.connectionString);
+        const { db, conn } = createDb(getDatabaseUrl(this.env));
 
         const foundConnection = yield* Effect.tryPromise({
           try: async () => {
@@ -729,7 +729,7 @@ export class WorkflowRunner extends DurableObject<ZeroEnv> {
 
       if (providerId === EProviders.google) {
         console.log('[THREAD_WORKFLOW] Processing Google provider workflow');
-        const { db, conn } = createDb(this.env.HYPERDRIVE.connectionString);
+        const { db, conn } = createDb(getDatabaseUrl(this.env));
 
         let foundConnection;
         try {

@@ -32,7 +32,7 @@ import { openai } from '@ai-sdk/openai';
 import { and, eq } from 'drizzle-orm';
 import { McpAgent } from 'agents/mcp';
 import { groq } from '@ai-sdk/groq';
-import { createDb } from '../db';
+import { createDb, getDatabaseUrl } from '../db';
 import { z } from 'zod';
 
 const decoder = new TextDecoder();
@@ -386,7 +386,7 @@ export class ZeroAgent extends AIChatAgent<typeof env> {
 
   public async setupAuth(connectionId: string) {
     if (!this.driver) {
-      const { db, conn } = createDb(env.HYPERDRIVE.connectionString);
+      const { db, conn } = createDb(getDatabaseUrl(env));
       const _connection = await db.query.connection.findFirst({
         where: eq(connection.id, connectionId),
       });
@@ -1180,7 +1180,7 @@ export class ZeroMCP extends McpAgent<typeof env, {}, { userId: string }> {
   }
 
   async init(): Promise<void> {
-    const { db, conn } = createDb(env.HYPERDRIVE.connectionString);
+    const { db, conn } = createDb(getDatabaseUrl(env));
     const _connection = await db.query.connection.findFirst({
       where: eq(connection.userId, this.props.userId),
     });

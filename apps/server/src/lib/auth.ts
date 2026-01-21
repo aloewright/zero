@@ -21,7 +21,7 @@ import { APIError } from 'better-auth/api';
 import { type EProviders } from '../types';
 import { createDriver } from './driver';
 import { Autumn } from 'autumn-js';
-import { createDb } from '../db';
+import { createDb, getDatabaseUrl } from '../db';
 import { Effect } from 'effect';
 import { env } from '../env';
 import { Dub } from 'dub';
@@ -35,7 +35,7 @@ const scheduleCampaign = (userInfo: { address: string; name: string }) =>
       Effect.promise(() =>
         resendService.emails
           .send({
-            from: '0.email <onboarding@0.email>',
+            from: 'alex.chat <onboarding@alex.chat>',
             to: userInfo.address,
             subject,
             react: react as any,
@@ -46,7 +46,7 @@ const scheduleCampaign = (userInfo: { address: string; name: string }) =>
 
     const emails = [
       {
-        subject: 'Welcome to 0.email',
+        subject: 'Welcome to alex.chat',
         react: WelcomeEmail({ name }),
         scheduledAt: undefined,
       },
@@ -191,11 +191,11 @@ export const createAuth = () => {
           const verificationUrl = data.url;
 
           await resend().emails.send({
-            from: '0.email <no-reply@0.email>',
+            from: 'alex.chat <no-reply@alex.chat>',
             to: data.user.email,
-            subject: 'Delete your 0.email account',
+            subject: 'Delete your alex.chat account',
             html: `
-            <h2>Delete Your 0.email Account</h2>
+            <h2>Delete Your alex.chat Account</h2>
             <p>Click the link below to delete your account:</p>
             <a href="${verificationUrl}">${verificationUrl}</a>
           `,
@@ -263,7 +263,7 @@ export const createAuth = () => {
       requireEmailVerification: true,
       sendResetPassword: async ({ user, url }) => {
         await resend().emails.send({
-          from: '0.email <onboarding@0.email>',
+          from: 'alex.chat <onboarding@alex.chat>',
           to: user.email,
           subject: 'Reset your password',
           html: `
@@ -282,11 +282,11 @@ export const createAuth = () => {
         const verificationUrl = `${env.VITE_PUBLIC_APP_URL}/api/auth/verify-email?token=${token}&callbackURL=/settings/connections`;
 
         await resend().emails.send({
-          from: '0.email <onboarding@0.email>',
+          from: 'alex.chat <onboarding@alex.chat>',
           to: user.email,
-          subject: 'Verify your 0.email account',
+          subject: 'Verify your alex.chat account',
           html: `
-            <h2>Verify Your 0.email Account</h2>
+            <h2>Verify Your alex.chat Account</h2>
             <p>Click the link below to verify your email:</p>
             <a href="${verificationUrl}">${verificationUrl}</a>
           `,
@@ -328,7 +328,7 @@ export const createAuth = () => {
 
 const createAuthConfig = () => {
   const cache = redis();
-  const { db } = createDb(env.HYPERDRIVE.connectionString);
+  const { db } = createDb(getDatabaseUrl(env));
   return {
     database: drizzleAdapter(db, { provider: 'pg' }),
     secondaryStorage: {
@@ -356,10 +356,10 @@ const createAuthConfig = () => {
     },
     baseURL: env.VITE_PUBLIC_BACKEND_URL,
     trustedOrigins: [
-      'https://app.0.email',
-      'https://sapi.0.email',
-      'https://staging.0.email',
-      'https://0.email',
+      'https://app.alex.chat',
+      'https://sapi.alex.chat',
+      'https://staging.alex.chat',
+      'https://alex.chat',
       'http://localhost:3000',
       'https://alex.chat',
       'https://zero-server-production.lazee.workers.dev',

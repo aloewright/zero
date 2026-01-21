@@ -455,6 +455,12 @@
       "triggers": {
         "crons": ["0 0 * * *", "0 * * * *"],
       },
+      "routes": [
+        {
+          "pattern": "api.alex.chat",
+          "custom_domain": true,
+        },
+      ],
       "r2_buckets": [
         {
           "binding": "THREADS_BUCKET",
@@ -478,13 +484,6 @@
         "enabled": true,
       },
       "logpush": true,
-      "hyperdrive": [
-        {
-          "binding": "HYPERDRIVE",
-          "id": "b1be316b45fb439a9e54b74ecc20aa21",
-          "localConnectionString": "postgresql://postgres:postgres@localhost:5432/zerodotemail",
-        },
-      ],
       "durable_objects": {
         "bindings": [
           {
@@ -604,9 +603,9 @@
       ],
       "vars": {
         "NODE_ENV": "production",
-        "COOKIE_DOMAIN": "0.email",
-        "VITE_PUBLIC_BACKEND_URL": "https://api.0.email",
-        "VITE_PUBLIC_APP_URL": "https://0.email",
+        "COOKIE_DOMAIN": "alex.chat",
+        "VITE_PUBLIC_BACKEND_URL": "https://api.alex.chat",
+        "VITE_PUBLIC_APP_URL": "https://alex.chat",
         "DISABLE_CALLS": "true",
         "DROP_AGENT_TABLES": "false",
         "THREAD_SYNC_MAX_COUNT": "60",
@@ -621,43 +620,43 @@
       "kv_namespaces": [
         {
           "binding": "gmail_history_id",
-          "id": "10005d74e84f4f18a17c9618d9e9cecf",
+          "id": "cfe4c3b298e7499699a2c05be3601380",
         },
         {
           "binding": "gmail_processing_threads",
-          "id": "3348ff0976284269a8d8a5e6e4c04c56",
+          "id": "b8b1149af58b43b38734230cdd5b6a4f",
         },
         {
           "binding": "subscribed_accounts",
-          "id": "5902b3b948ff4c4ba1aedbbbbe25503d",
+          "id": "001591ecbdfc4982b9bf0acf3ed10801",
         },
         {
           "binding": "connection_labels",
-          "id": "9a13290a55ad4f62824c67005dd66f6f",
+          "id": "42673ac9247e4a7db515d08ceccdc078",
         },
         {
           "binding": "prompts_storage",
-          "id": "2a4ebda553f3456085cfcf92cc0f570f",
+          "id": "fddd03c799914c1fa4c441c5dd8dd4ce",
         },
         {
           "binding": "gmail_sub_age",
-          "id": "0591e91fffcc4675aaf00f909bee77d2",
+          "id": "24d48fe7ae0e4a3886d734ab0aa368f8",
         },
         {
           "binding": "pending_emails_status",
-          "id": "e65f8f72441d4eadb9d5ae36269316c9",
+          "id": "41be4bc940a74cd6903991b5d82acdc3",
         },
         {
           "binding": "pending_emails_payload",
-          "id": "e65f8f72441d4eadb9d5ae36269316c9_payload",
+          "id": "4374fd0d8e364fefb1d4cecbd8bfd19d",
         },
         {
           "binding": "scheduled_emails",
-          "id": "e65f8f72441d4eadb9d5ae36269316c9_scheduled",
+          "id": "9be32cbef8c54d0fbac4d01fa65a3372",
         },
         {
           "binding": "snoozed_emails",
-          "id": "f0952e9c3b024cb499c4b9dfe8bb603e",
+          "id": "524874adaece49de93f1ed3916db645b",
         },
       ],
     },
