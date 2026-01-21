@@ -3,7 +3,7 @@ import { openai } from '@ai-sdk/openai';
 import { tools } from './agent/tools';
 import { generateText } from 'ai';
 import { Tools } from '../types';
-import { createDb } from '../db';
+import { createDb, getDatabaseUrl } from '../db';
 import { env } from '../env';
 import { Hono } from 'hono';
 import { z } from 'zod';
@@ -31,7 +31,7 @@ aiRouter.post('/do/:action', async (c) => {
     return c.json({ success: false, error: 'Unauthorized' }, 401);
   const caller = c.req.header('X-Caller');
   if (!caller) return c.json({ success: false, error: 'Unauthorized' }, 401);
-  const { db, conn } = createDb(env.HYPERDRIVE.connectionString);
+  const { db, conn } = createDb(getDatabaseUrl(env));
   const user = await db.query.user.findFirst({
     where: (user, { eq, and }) =>
       and(eq(user.phoneNumber, caller), eq(user.phoneNumberVerified, true)),
@@ -100,7 +100,7 @@ aiRouter.post('/call', async (c) => {
   }
 
   console.log('[DEBUG] Connecting to database');
-  const { db, conn } = createDb(env.HYPERDRIVE.connectionString);
+  const { db, conn } = createDb(getDatabaseUrl(env));
 
   console.log('[DEBUG] Finding user by phone number:', c.req.header('X-Caller'));
   const user = await db.query.user.findFirst({

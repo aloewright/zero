@@ -21,15 +21,25 @@
     "staging": {
       "name": "zero-staging",
       "vars": {
-        "VITE_PUBLIC_BACKEND_URL": "https://sapi.0.email",
-        "VITE_PUBLIC_APP_URL": "https://staging.0.email",
+        "VITE_PUBLIC_BACKEND_URL": "https://sapi.alex.chat",
+        "VITE_PUBLIC_APP_URL": "https://staging.alex.chat",
       },
     },
     "production": {
       "name": "zero-production",
+      "routes": [
+        {
+          "pattern": "alex.chat",
+          "custom_domain": true
+        },
+        {
+          "pattern": "www.alex.chat",
+          "custom_domain": true
+        }
+      ],
       "vars": {
-        "VITE_PUBLIC_BACKEND_URL": "https://api.0.email",
-        "VITE_PUBLIC_APP_URL": "https://0.email",
+        "VITE_PUBLIC_BACKEND_URL": "https://api.alex.chat",
+        "VITE_PUBLIC_APP_URL": "https://alex.chat",
       },
     },
   },

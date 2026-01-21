@@ -1,0 +1,22 @@
+{
+  "name": "@zero/inbound-mail",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev --port 8788 --show-interactive-dev-session=false --env local",
+    "deploy": "wrangler deploy --env production",
+    "deploy:staging": "wrangler deploy --env staging",
+    "types": "wrangler types --env local",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "wrangler": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@zero/eslint-config": "workspace:*",
+    "@zero/tsconfig": "workspace:*",
+    "eslint": "^9.27.0",
+    "typescript": "catalog:"
+  }
+}

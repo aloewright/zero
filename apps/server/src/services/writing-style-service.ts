@@ -8,7 +8,7 @@ import { google } from '@ai-sdk/google';
 import { jsonrepair } from 'jsonrepair';
 import { generateObject } from 'ai';
 import { eq } from 'drizzle-orm';
-import { createDb } from '../db';
+import { createDb, getDatabaseUrl } from '../db';
 import pRetry from 'p-retry';
 import { z } from 'zod';
 
@@ -165,7 +165,7 @@ export const getWritingStyleMatrixForConnectionId = async ({
   connectionId: string;
   backupContent?: string;
 }) => {
-  const { db, conn } = createDb(env.HYPERDRIVE.connectionString);
+  const { db, conn } = createDb(getDatabaseUrl(env));
 
   const matrix = await db.query.writingStyleMatrix.findFirst({
     where: eq(writingStyleMatrix.connectionId, connectionId),
@@ -195,7 +195,7 @@ export const updateWritingStyleMatrix = async (connectionId: string, emailBody: 
 
   await pRetry(
     async () => {
-      const { db, conn } = createDb(env.HYPERDRIVE.connectionString);
+      const { db, conn } = createDb(getDatabaseUrl(env));
       await db.transaction(async (tx) => {
         const [existingMatrix] = await tx
           .select({

@@ -6,6 +6,13 @@
   "main": "src/main.ts",
   "env": {
     "local": {
+      "rules": [
+        {
+          "type": "Text",
+          "globs": ["**/*.sql"],
+          "fallthrough": true,
+        },
+      ],
       "ai": {
         "binding": "AI",
       },
@@ -51,8 +58,29 @@
             "name": "WORKFLOW_RUNNER",
             "class_name": "WorkflowRunner",
           },
+
+          {
+            "name": "THREAD_SYNC_WORKER",
+            "class_name": "ThreadSyncWorker",
+          },
+          {
+            "name": "SHARD_REGISTRY",
+            "class_name": "ShardRegistry",
+          },
         ],
       },
+      "workflows": [
+        {
+          "binding": "SYNC_THREADS_WORKFLOW",
+          "class_name": "SyncThreadsWorkflow",
+          "name": "sync-threads-workflow",
+        },
+        {
+          "binding": "SYNC_THREADS_COORDINATOR_WORKFLOW",
+          "class_name": "SyncThreadsCoordinatorWorkflow",
+          "name": "sync-threads-coordinator-workflow",
+        },
+      ],
       "queues": {
         "producers": [
           {
@@ -63,6 +91,10 @@
             "queue": "subscribe-queue",
             "binding": "subscribe_queue",
           },
+          {
+            "queue": "send-email-queue",
+            "binding": "send_email_queue",
+          },
         ],
         "consumers": [
           {
@@ -70,6 +102,9 @@
           },
           {
             "queue": "thread-queue",
+          },
+          {
+            "queue": "send-email-queue",
           },
         ],
       },
@@ -102,13 +137,18 @@
           "tag": "v7",
           "new_sqlite_classes": ["WorkflowRunner"],
         },
+        {
+          "tag": "v8",
+          "new_sqlite_classes": ["ThreadSyncWorker"],
+        },
+        {
+          "tag": "v9",
+          "new_sqlite_classes": ["ShardRegistry"],
+        },
       ],
 
       "observability": {
         "enabled": true,
-      },
-      "triggers": {
-        "crons": ["*/1 * * * *"],
       },
       "hyperdrive": [
         {
@@ -128,13 +168,19 @@
         "VOICE_SECRET": "1234567890",
         "GOOGLE_S_ACCOUNT": "{}",
         "DROP_AGENT_TABLES": "false",
-        "THREAD_SYNC_MAX_COUNT": "5",
+        "THREAD_SYNC_MAX_COUNT": "60",
         "THREAD_SYNC_LOOP": "false",
         "DISABLE_WORKFLOWS": "true",
         "AUTORAG_ID": "",
         "USE_OPENAI": "true",
         "CLOUDFLARE_ACCOUNT_ID": "",
         "CLOUDFLARE_API_TOKEN": "",
+        "MEET_AUTH_HEADER": "",
+        "OTEL_EXPORTER_OTLP_ENDPOINT": "https://api.axiom.co/v1/traces",
+        "OTEL_SERVICE_NAME": "zero-email-server-local",
+        "DD_API_KEY": "",
+        "DD_APP_KEY": "",
+        "DD_SITE": "datadoghq.com",
       },
       "kv_namespaces": [
         {
@@ -162,14 +208,33 @@
           "id": "c55e692bb71d4e5bae23dded092b09d5",
         },
         {
+          "binding": "pending_emails_status",
+          "id": "7f277903ebab4b4d89f5d59b1f531073",
+        },
+        {
+          "binding": "pending_emails_payload",
+          "id": "d5da698931524da9992fe398e095fc32",
+        },
+        {
+          "binding": "scheduled_emails",
+          "id": "444cad0e54114635b5199ffae9542bd5",
+        },
+        {
           "binding": "snoozed_emails",
           "id": "f3a30ed7198542d890db172536bade33",
         },
       ],
     },
     "staging": {
+      "rules": [
+        {
+          "type": "Text",
+          "globs": ["**/*.sql"],
+          "fallthrough": true,
+        },
+      ],
       "triggers": {
-        "crons": ["0 0 * * *"],
+        "crons": ["0 0 * * *", "0 * * * *"],
       },
       "ai": {
         "binding": "AI",
@@ -213,8 +278,28 @@
             "name": "WORKFLOW_RUNNER",
             "class_name": "WorkflowRunner",
           },
+          {
+            "name": "THREAD_SYNC_WORKER",
+            "class_name": "ThreadSyncWorker",
+          },
+          {
+            "name": "SHARD_REGISTRY",
+            "class_name": "ShardRegistry",
+          },
         ],
       },
+      "workflows": [
+        {
+          "binding": "SYNC_THREADS_WORKFLOW",
+          "class_name": "SyncThreadsWorkflow",
+          "name": "sync-threads-workflow-staging",
+        },
+        {
+          "binding": "SYNC_THREADS_COORDINATOR_WORKFLOW",
+          "class_name": "SyncThreadsCoordinatorWorkflow",
+          "name": "sync-threads-coordinator-workflow-staging",
+        },
+      ],
       "r2_buckets": [
         {
           "binding": "THREADS_BUCKET",
@@ -231,6 +316,10 @@
             "queue": "subscribe-queue-staging",
             "binding": "subscribe_queue",
           },
+          {
+            "queue": "send-email-queue-staging",
+            "binding": "send_email_queue",
+          },
         ],
         "consumers": [
           {
@@ -238,6 +327,9 @@
           },
           {
             "queue": "thread-queue-staging",
+          },
+          {
+            "queue": "send-email-queue-staging",
           },
         ],
       },
@@ -274,6 +366,14 @@
           "tag": "v8",
           "new_sqlite_classes": ["WorkflowRunner"],
         },
+        {
+          "tag": "v9",
+          "new_sqlite_classes": ["ThreadSyncWorker"],
+        },
+        {
+          "tag": "v10",
+          "new_sqlite_classes": ["ShardRegistry"],
+        },
       ],
       "observability": {
         "enabled": true,
@@ -292,9 +392,14 @@
         "VITE_PUBLIC_APP_URL": "https://staging.0.email",
         "DISABLE_CALLS": "",
         "DROP_AGENT_TABLES": "false",
-        "THREAD_SYNC_MAX_COUNT": "20",
+        "THREAD_SYNC_MAX_COUNT": "60",
         "THREAD_SYNC_LOOP": "true",
-        "DISABLE_WORKFLOWS": "true",
+        "DISABLE_WORKFLOWS": "false",
+        "OTEL_EXPORTER_OTLP_ENDPOINT": "https://api.axiom.co/v1/traces",
+        "OTEL_SERVICE_NAME": "zero-email-server-staging",
+        "DD_API_KEY": "",
+        "DD_APP_KEY": "",
+        "DD_SITE": "datadoghq.com",
       },
       "kv_namespaces": [
         {
@@ -322,15 +427,40 @@
           "id": "c55e692bb71d4e5bae23dded092b09d5",
         },
         {
+          "binding": "pending_emails_status",
+          "id": "7f277903ebab4b4d89f5d59b1f531073",
+        },
+        {
+          "binding": "pending_emails_payload",
+          "id": "d5da698931524da9992fe398e095fc32",
+        },
+        {
+          "binding": "scheduled_emails",
+          "id": "444cad0e54114635b5199ffae9542bd5",
+        },
+        {
           "binding": "snoozed_emails",
           "id": "f3a30ed7198542d890db172536bade33",
         },
       ],
     },
     "production": {
+      "rules": [
+        {
+          "type": "Text",
+          "globs": ["**/*.sql"],
+          "fallthrough": true,
+        },
+      ],
       "triggers": {
-        "crons": ["0 0 * * *"],
+        "crons": ["0 0 * * *", "0 * * * *"],
       },
+      "routes": [
+        {
+          "pattern": "api.alex.chat",
+          "custom_domain": true,
+        },
+      ],
       "r2_buckets": [
         {
           "binding": "THREADS_BUCKET",
@@ -353,13 +483,7 @@
       "observability": {
         "enabled": true,
       },
-      "hyperdrive": [
-        {
-          "binding": "HYPERDRIVE",
-          "id": "b1be316b45fb439a9e54b74ecc20aa21",
-          "localConnectionString": "postgresql://postgres:postgres@localhost:5432/zerodotemail",
-        },
-      ],
+      "logpush": true,
       "durable_objects": {
         "bindings": [
           {
@@ -386,8 +510,28 @@
             "name": "WORKFLOW_RUNNER",
             "class_name": "WorkflowRunner",
           },
+          {
+            "name": "THREAD_SYNC_WORKER",
+            "class_name": "ThreadSyncWorker",
+          },
+          {
+            "name": "SHARD_REGISTRY",
+            "class_name": "ShardRegistry",
+          },
         ],
       },
+      "workflows": [
+        {
+          "binding": "SYNC_THREADS_WORKFLOW",
+          "class_name": "SyncThreadsWorkflow",
+          "name": "sync-threads-workflow-prod",
+        },
+        {
+          "binding": "SYNC_THREADS_COORDINATOR_WORKFLOW",
+          "class_name": "SyncThreadsCoordinatorWorkflow",
+          "name": "sync-threads-coordinator-workflow-prod",
+        },
+      ],
       "queues": {
         "producers": [
           {
@@ -398,6 +542,10 @@
             "queue": "subscribe-queue-prod",
             "binding": "subscribe_queue",
           },
+          {
+            "queue": "send-email-queue-prod",
+            "binding": "send_email_queue",
+          },
         ],
         "consumers": [
           {
@@ -405,6 +553,9 @@
           },
           {
             "queue": "thread-queue-prod",
+          },
+          {
+            "queue": "send-email-queue-prod",
           },
         ],
       },
@@ -441,46 +592,71 @@
           "tag": "v8",
           "new_sqlite_classes": ["WorkflowRunner"],
         },
+        {
+          "tag": "v9",
+          "new_sqlite_classes": ["ThreadSyncWorker"],
+        },
+        {
+          "tag": "v10",
+          "new_sqlite_classes": ["ShardRegistry"],
+        },
       ],
       "vars": {
         "NODE_ENV": "production",
-        "COOKIE_DOMAIN": "0.email",
-        "VITE_PUBLIC_BACKEND_URL": "https://api.0.email",
-        "VITE_PUBLIC_APP_URL": "https://0.email",
+        "COOKIE_DOMAIN": "alex.chat",
+        "VITE_PUBLIC_BACKEND_URL": "https://api.alex.chat",
+        "VITE_PUBLIC_APP_URL": "https://alex.chat",
         "DISABLE_CALLS": "true",
         "DROP_AGENT_TABLES": "false",
-        "THREAD_SYNC_MAX_COUNT": "10",
+        "THREAD_SYNC_MAX_COUNT": "60",
         "THREAD_SYNC_LOOP": "true",
         "DISABLE_WORKFLOWS": "true",
+        "OTEL_EXPORTER_OTLP_ENDPOINT": "https://api.axiom.co/v1/traces",
+        "OTEL_SERVICE_NAME": "zero-email-server-production",
+        "DD_API_KEY": "",
+        "DD_APP_KEY": "",
+        "DD_SITE": "datadoghq.com",
       },
       "kv_namespaces": [
         {
           "binding": "gmail_history_id",
-          "id": "10005d74e84f4f18a17c9618d9e9cecf",
+          "id": "cfe4c3b298e7499699a2c05be3601380",
         },
         {
           "binding": "gmail_processing_threads",
-          "id": "3348ff0976284269a8d8a5e6e4c04c56",
+          "id": "b8b1149af58b43b38734230cdd5b6a4f",
         },
         {
           "binding": "subscribed_accounts",
-          "id": "5902b3b948ff4c4ba1aedbbbbe25503d",
+          "id": "001591ecbdfc4982b9bf0acf3ed10801",
         },
         {
           "binding": "connection_labels",
-          "id": "9a13290a55ad4f62824c67005dd66f6f",
+          "id": "42673ac9247e4a7db515d08ceccdc078",
         },
         {
           "binding": "prompts_storage",
-          "id": "2a4ebda553f3456085cfcf92cc0f570f",
+          "id": "fddd03c799914c1fa4c441c5dd8dd4ce",
         },
         {
           "binding": "gmail_sub_age",
-          "id": "0591e91fffcc4675aaf00f909bee77d2",
+          "id": "24d48fe7ae0e4a3886d734ab0aa368f8",
+        },
+        {
+          "binding": "pending_emails_status",
+          "id": "41be4bc940a74cd6903991b5d82acdc3",
+        },
+        {
+          "binding": "pending_emails_payload",
+          "id": "4374fd0d8e364fefb1d4cecbd8bfd19d",
+        },
+        {
+          "binding": "scheduled_emails",
+          "id": "9be32cbef8c54d0fbac4d01fa65a3372",
         },
         {
           "binding": "snoozed_emails",
-          "id": "f0952e9c3b024cb499c4b9dfe8bb603e",
+          "id": "524874adaece49de93f1ed3916db645b",
         },
       ],
     },

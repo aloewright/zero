@@ -11,18 +11,17 @@ import { createAuthMiddleware, phoneNumber, jwt, bearer, mcp } from 'better-auth
 import { type Account, betterAuth, type BetterAuthOptions } from 'better-auth';
 import { getBrowserTimezone, isValidTimezone } from './timezones';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
+import { getZeroDB, resetConnection } from './server-utils';
 import { getSocialProviders } from './auth-providers';
 import { redis, resend, twilio } from './services';
-import { getContext } from 'hono/context-storage';
 import { dubAnalytics } from '@dub/better-auth';
 import { defaultUserSettings } from './schemas';
 import { disableBrainFunction } from './brain';
 import { APIError } from 'better-auth/api';
-import { getZeroDB } from './server-utils';
 import { type EProviders } from '../types';
-import type { HonoContext } from '../ctx';
 import { createDriver } from './driver';
-import { createDb } from '../db';
+import { Autumn } from 'autumn-js';
+import { createDb, getDatabaseUrl } from '../db';
 import { Effect } from 'effect';
 import { env } from '../env';
 import { Dub } from 'dub';
@@ -36,7 +35,7 @@ const scheduleCampaign = (userInfo: { address: string; name: string }) =>
       Effect.promise(() =>
         resendService.emails
           .send({
-            from: '0.email <onboarding@0.email>',
+            from: 'alex.chat <onboarding@alex.chat>',
             to: userInfo.address,
             subject,
             react: react as any,
@@ -47,7 +46,7 @@ const scheduleCampaign = (userInfo: { address: string; name: string }) =>
 
     const emails = [
       {
-        subject: 'Welcome to 0.email',
+        subject: 'Welcome to alex.chat',
         react: WelcomeEmail({ name }),
         scheduledAt: undefined,
       },
@@ -92,7 +91,9 @@ const scheduleCampaign = (userInfo: { address: string; name: string }) =>
 const connectionHandlerHook = async (account: Account) => {
   if (!account.accessToken || !account.refreshToken) {
     console.error('Missing Access/Refresh Tokens', { account });
-    throw new APIError('EXPECTATION_FAILED', { message: 'Missing Access/Refresh Tokens' });
+    throw new APIError('EXPECTATION_FAILED', {
+      message: 'Missing Access/Refresh Tokens, contact us on Discord for support',
+    });
   }
 
   const driver = createDriver(account.providerId, {
@@ -104,13 +105,26 @@ const connectionHandlerHook = async (account: Account) => {
     },
   });
 
-  const userInfo = await driver.getUserInfo().catch(() => {
-    throw new APIError('UNAUTHORIZED', { message: 'Failed to get user info' });
+  const userInfo = await driver.getUserInfo().catch(async () => {
+    if (account.accessToken) {
+      await driver.revokeToken(account.accessToken);
+      await resetConnection(account.id);
+    }
+    throw new Response(null, { status: 301, headers: { Location: '/' } });
   });
 
   if (!userInfo?.address) {
-    console.error('Missing email in user info:', { userInfo });
-    throw new APIError('BAD_REQUEST', { message: 'Missing "email" in user info' });
+    try {
+      await Promise.allSettled(
+        [account.accessToken, account.refreshToken]
+          .filter(Boolean)
+          .map((t) => driver.revokeToken(t as string)),
+      );
+      await resetConnection(account.id);
+    } catch (error) {
+      console.error('Failed to revoke tokens:', error);
+    }
+    throw new Response(null, { status: 303, headers: { Location: '/' } });
   }
 
   const updatingInfo = {
@@ -177,11 +191,11 @@ export const createAuth = () => {
           const verificationUrl = data.url;
 
           await resend().emails.send({
-            from: '0.email <no-reply@0.email>',
+            from: 'alex.chat <no-reply@alex.chat>',
             to: data.user.email,
-            subject: 'Delete your 0.email account',
+            subject: 'Delete your alex.chat account',
             html: `
-            <h2>Delete Your 0.email Account</h2>
+            <h2>Delete Your alex.chat Account</h2>
             <p>Click the link below to delete your account:</p>
             <a href="${verificationUrl}">${verificationUrl}</a>
           `,
@@ -191,21 +205,12 @@ export const createAuth = () => {
           if (!request) throw new APIError('BAD_REQUEST', { message: 'Request object is missing' });
           const db = await getZeroDB(user.id);
           const connections = await db.findManyConnections();
-          const context = getContext<HonoContext>();
-          const customer = await context.var.autumn.customers.get(user.id);
-          if (customer.data) {
-            try {
-              await Promise.all(
-                customer.data.products.map(async (product) =>
-                  context.var.autumn.cancel({
-                    customer_id: user.id,
-                    product_id: product.id,
-                  }),
-                ),
-              );
-            } catch (error) {
-              console.error('Failed to delete Autumn customer:', error);
-            }
+          const autumn = new Autumn({ secretKey: env.AUTUMN_SECRET_KEY });
+          try {
+            await autumn.customers.delete(user.id);
+          } catch (error) {
+            console.error('Failed to delete Autumn customer:', error);
+            // Continue with deletion process despite Autumn failure
           }
 
           const revokedAccounts = (
@@ -258,7 +263,7 @@ export const createAuth = () => {
       requireEmailVerification: true,
       sendResetPassword: async ({ user, url }) => {
         await resend().emails.send({
-          from: '0.email <onboarding@0.email>',
+          from: 'alex.chat <onboarding@alex.chat>',
           to: user.email,
           subject: 'Reset your password',
           html: `
@@ -277,11 +282,11 @@ export const createAuth = () => {
         const verificationUrl = `${env.VITE_PUBLIC_APP_URL}/api/auth/verify-email?token=${token}&callbackURL=/settings/connections`;
 
         await resend().emails.send({
-          from: '0.email <onboarding@0.email>',
+          from: 'alex.chat <onboarding@alex.chat>',
           to: user.email,
-          subject: 'Verify your 0.email account',
+          subject: 'Verify your alex.chat account',
           html: `
-            <h2>Verify Your 0.email Account</h2>
+            <h2>Verify Your alex.chat Account</h2>
             <p>Click the link below to verify your email:</p>
             <a href="${verificationUrl}">${verificationUrl}</a>
           `,
@@ -323,7 +328,7 @@ export const createAuth = () => {
 
 const createAuthConfig = () => {
   const cache = redis();
-  const { db } = createDb(env.HYPERDRIVE.connectionString);
+  const { db } = createDb(getDatabaseUrl(env));
   return {
     database: drizzleAdapter(db, { provider: 'pg' }),
     secondaryStorage: {
@@ -351,11 +356,13 @@ const createAuthConfig = () => {
     },
     baseURL: env.VITE_PUBLIC_BACKEND_URL,
     trustedOrigins: [
-      'https://app.0.email',
-      'https://sapi.0.email',
-      'https://staging.0.email',
-      'https://0.email',
+      'https://app.alex.chat',
+      'https://sapi.alex.chat',
+      'https://staging.alex.chat',
+      'https://alex.chat',
       'http://localhost:3000',
+      'https://alex.chat',
+      'https://zero-server-production.lazee.workers.dev',
     ],
     session: {
       cookieCache: {
