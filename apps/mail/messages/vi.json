@@ -613,7 +613,7 @@
     "createEmail": {
       "invalidEmail": "Địa chỉ email không hợp lệ",
       "body": "Nội dung",
-      "example": "zero@0.email",
+      "example": "zero@alex.chat",
       "attachments": "Tệp đính kèm ({count})",
       "addMore": "Thêm nữa",
       "dropFilesToAttach": "Kéo thả tệp để đính kèm",

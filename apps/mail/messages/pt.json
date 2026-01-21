@@ -613,7 +613,7 @@
     "createEmail": {
       "invalidEmail": "Endereço de email inválido",
       "body": "Corpo",
-      "example": "zero@0.email",
+      "example": "zero@alex.chat",
       "attachments": "Anexos",
       "addMore": "Adicionar mais",
       "dropFilesToAttach": "Arraste e solte arquivos para anexar",
